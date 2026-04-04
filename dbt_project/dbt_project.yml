@@ -1,0 +1,21 @@
+name: finance_demo
+version: 1.0.0
+config-version: 2
+profile: finance_demo
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+
+models:
+  finance_demo:
+    +materialized: view
+    staging:
+      +schema: staging
+    intermediate:
+      +schema: intermediate
+    marts:
+      +schema: marts
+      +materialized: table

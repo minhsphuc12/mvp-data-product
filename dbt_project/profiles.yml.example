@@ -1,0 +1,18 @@
+# Copy to profiles.yml in this directory and run with:
+#   export DBT_PROFILES_DIR="$(pwd)/dbt_project"
+# Or merge into ~/.dbt/profiles.yml under key finance_demo.
+#
+# Requires .env loaded (same variables as .env.example).
+
+finance_demo:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('ANALYTICS_DB_HOST') }}"
+      port: "{{ env_var('ANALYTICS_DB_PORT') | as_number }}"
+      user: "{{ env_var('ANALYTICS_DB_USER') }}"
+      password: "{{ env_var('ANALYTICS_DB_PASSWORD') }}"
+      dbname: "{{ env_var('ANALYTICS_DB_DATABASE') }}"
+      schema: finance_demo
+      threads: 4

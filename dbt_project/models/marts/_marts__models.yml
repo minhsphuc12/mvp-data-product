@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Calendar dimension generated from a contiguous date spine."
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: dim_branch
+    description: "Branch conformed dimension (lending is the system of record)."
+    columns:
+      - name: branch_key
+        tests: [unique, not_null]
+      - name: branch_id
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    description: "Customer dimension keyed by resolved master_customer_id."
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: master_customer_id
+        tests: [unique, not_null]
+
+  - name: fct_loan_disbursement
+    description: "One row per loan disbursement (loan_id grain)."
+    columns:
+      - name: loan_id
+        tests: [unique, not_null]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: branch_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_branch')
+              field: branch_key
+      - name: disbursement_date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+  - name: fct_repayment
+    description: "One row per repayment event."
+    columns:
+      - name: repayment_id
+        tests: [unique, not_null]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+
+  - name: fct_policy
+    description: "One row per insurance policy."
+    columns:
+      - name: policy_id
+        tests: [unique, not_null]
+
+  - name: fct_claim
+    description: "One row per claim."
+    columns:
+      - name: claim_id
+        tests: [unique, not_null]
+
+  - name: mart_branch_monthly_performance
+    description: "Executive-style branch × month rollups."
+    columns:
+      - name: branch_month_sk
+        tests: [unique, not_null]
+      - name: branch_id
+        tests: [not_null]
+      - name: month_start_date
+        tests: [not_null]

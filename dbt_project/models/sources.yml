@@ -1,0 +1,138 @@
+version: 2
+
+sources:
+  - name: raw_lending
+    description: "Mirrored lending operational tables loaded by Python into analytics_db."
+    schema: raw_lending
+    tables:
+      - name: branches
+        columns:
+          - name: branch_id
+            tests: [unique, not_null]
+          - name: branch_name
+            tests: [not_null]
+          - name: city
+            tests: [not_null]
+
+      - name: customers
+        columns:
+          - name: customer_id
+            tests: [unique, not_null]
+          - name: phone_number
+            tests: [not_null]
+          - name: full_name
+            tests: [not_null]
+          - name: primary_branch_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_lending', 'branches')
+                  field: branch_id
+
+      - name: loan_applications
+        columns:
+          - name: application_id
+            tests: [unique, not_null]
+          - name: status
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ["pending", "approved", "rejected"]
+          - name: customer_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_lending', 'customers')
+                  field: customer_id
+          - name: branch_id
+            tests:
+              - relationships:
+                  to: source('raw_lending', 'branches')
+                  field: branch_id
+
+      - name: loans
+        columns:
+          - name: loan_id
+            tests: [unique, not_null]
+          - name: status
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ["active", "closed", "defaulted"]
+          - name: customer_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_lending', 'customers')
+                  field: customer_id
+          - name: branch_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_lending', 'branches')
+                  field: branch_id
+          - name: application_id
+            tests:
+              - relationships:
+                  to: source('raw_lending', 'loan_applications')
+                  field: application_id
+
+      - name: repayments
+        columns:
+          - name: repayment_id
+            tests: [unique, not_null]
+          - name: status
+            tests:
+              - accepted_values:
+                  values: ["completed", "failed"]
+          - name: loan_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_lending', 'loans')
+                  field: loan_id
+
+  - name: raw_insurance
+    description: "Mirrored insurance operational tables loaded by Python into analytics_db."
+    schema: raw_insurance
+    tables:
+      - name: policy_holders
+        columns:
+          - name: policy_holder_id
+            tests: [unique, not_null]
+          - name: phone_number
+            tests: [not_null]
+          - name: full_name
+            tests: [not_null]
+
+      - name: policies
+        columns:
+          - name: policy_id
+            tests: [unique, not_null]
+          - name: policy_number
+            tests: [unique, not_null]
+          - name: status
+            tests:
+              - accepted_values:
+                  values: ["active", "lapsed", "cancelled"]
+          - name: policy_holder_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_insurance', 'policy_holders')
+                  field: policy_holder_id
+
+      - name: claims
+        columns:
+          - name: claim_id
+            tests: [unique, not_null]
+          - name: status
+            tests:
+              - accepted_values:
+                  values: ["open", "approved", "denied", "closed"]
+          - name: policy_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw_insurance', 'policies')
+                  field: policy_id
