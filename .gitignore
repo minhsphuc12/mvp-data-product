@@ -9,3 +9,4 @@ dbt_project/logs/
 dbt_project/dbt_packages/
 dbt_project/profiles.yml
 .cursor/
+.DS_Store

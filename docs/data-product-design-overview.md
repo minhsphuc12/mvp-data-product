@@ -16,15 +16,17 @@ This document frames the demo as a **data product**: who it serves, what they ge
 
 ## 2. Core entities (conformed)
 
-| Entity | Mart expression | Notes |
-|--------|-----------------|--------|
-| Customer | `dim_customer` | `customer_key` ties lending and insurance via resolution |
-| Branch | `dim_branch` | Sourced from lending (system of record for branch dimension) |
-| Calendar | `dim_date` | Generated spine for joining facts to months and attributes |
-| Loan | `fct_loan_disbursement` | Disbursement-centric fact |
-| Repayment | `fct_repayment` | Cash movement events |
-| Policy | `fct_policy` | Contract-level fact |
-| Claim | `fct_claim` | Claim-level fact |
+
+| Entity    | Mart expression         | Notes                                                        |
+| --------- | ----------------------- | ------------------------------------------------------------ |
+| Customer  | `dim_customer`          | `customer_key` ties lending and insurance via resolution     |
+| Branch    | `dim_branch`            | Sourced from lending (system of record for branch dimension) |
+| Calendar  | `dim_date`              | Generated spine for joining facts to months and attributes   |
+| Loan      | `fct_loan_disbursement` | Disbursement-centric fact                                    |
+| Repayment | `fct_repayment`         | Cash movement events                                         |
+| Policy    | `fct_policy`            | Contract-level fact                                          |
+| Claim     | `fct_claim`             | Claim-level fact                                             |
+
 
 ## 3. Primary deliverable: branch × month mart
 
@@ -34,14 +36,16 @@ This document frames the demo as a **data product**: who it serves, what they ge
 
 **Measures (as implemented):**
 
-| Measure | Definition (summary) |
-|---------|----------------------|
-| `loan_disbursement_amount` | Sum of loan principal from `fct_loan_disbursement` in that branch-month |
-| `number_of_loans` | Count of loans disbursed in that branch-month |
-| `repayment_amount` | Sum of **completed** repayments (from staging loans + repayments) in that branch-month |
-| `active_policy_count` | Distinct policies with `policy_status = active`, coverage overlapping any day in the month, holder resolved to a lending customer with `primary_branch_id = branch_id` |
-| `claim_amount` | Sum of claim amounts filed in the month, same branch attribution rule |
-| `cross_sell_customer_count` | Distinct `master_customer_id` with a loan disbursement in the branch-month **and** an active policy overlapping that month, same branch |
+
+| Measure                     | Definition (summary)                                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loan_disbursement_amount`  | Sum of loan principal from `fct_loan_disbursement` in that branch-month                                                                                                |
+| `number_of_loans`           | Count of loans disbursed in that branch-month                                                                                                                          |
+| `repayment_amount`          | Sum of **completed** repayments (from staging loans + repayments) in that branch-month                                                                                 |
+| `active_policy_count`       | Distinct policies with `policy_status = active`, coverage overlapping any day in the month, holder resolved to a lending customer with `primary_branch_id = branch_id` |
+| `claim_amount`              | Sum of claim amounts filed in the month, same branch attribution rule                                                                                                  |
+| `cross_sell_customer_count` | Distinct `master_customer_id` with a loan disbursement in the branch-month **and** an active policy overlapping that month, same branch                                |
+
 
 **Grain key:** `branch_month_sk` (MD5 of branch + month) is tested for uniqueness.
 
@@ -75,10 +79,13 @@ Synthetic data only; no real PII. National IDs and phones are random numeric pat
 
 ## 9. Roadmap ideas
 
-| Theme | Idea |
-|-------|------|
-| Consumption | Add Metabase (Compose) pointing at `analytics_db` |
-| Modeling | SCD2 `dim_customer`, role-playing dates on facts |
-| Metrics | dbt Metrics / Semantic Layer (version-dependent) |
-| Operations | Scheduled refresh, incremental `raw_*` loads, data quality monitors |
-| Governance | Promote lineage export into internal wiki or catalog |
+
+| Theme       | Idea                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| Consumption | Add Metabase (Compose) pointing at `analytics_db`                   |
+| Modeling    | SCD2 `dim_customer`, role-playing dates on facts                    |
+| Metrics     | dbt Metrics / Semantic Layer (version-dependent)                    |
+| Operations  | Scheduled refresh, incremental `raw_`* loads, data quality monitors |
+| Governance  | Promote lineage export into internal wiki or catalog                |
+
+
