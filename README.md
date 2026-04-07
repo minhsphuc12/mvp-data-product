@@ -4,12 +4,14 @@ Minimal, transparent stack: two operational Postgres databases (lending + insura
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [docs/technical-design.md](docs/technical-design.md) | Components, topology, configuration, boundaries |
-| [docs/data-design-and-flow.md](docs/data-design-and-flow.md) | Entities, ER-style overview, layers, identity rules, data flow |
-| [docs/data-product-design-overview.md](docs/data-product-design-overview.md) | Mart KPIs, audiences, limitations, roadmap |
-| [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md) | dbt docs, Mermaid export, extensions |
+
+| Document                                                                       | Description                                                    |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| [docs/technical-design.md](docs/technical-design.md)                           | Components, topology, configuration, boundaries                |
+| [docs/data-design-and-flow.md](docs/data-design-and-flow.md)                   | Entities, ER-style overview, layers, identity rules, data flow |
+| [docs/data-product-design-overview.md](docs/data-product-design-overview.md)   | Mart KPIs, audiences, limitations, roadmap                     |
+| [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md) | dbt docs, Mermaid export, extensions                           |
+
 
 ## Architecture
 
@@ -39,16 +41,18 @@ flowchart TB
   INT --> MRT
 ```
 
+
+
 ### Why this is transparent
 
-- **Explicit boundaries:** operational schemas stay isolated; analytics only consumes `raw_*` mirrors you can inspect with SQL.
+- **Explicit boundaries:** operational schemas stay isolated; analytics only consumes `raw_`* mirrors you can inspect with SQL.
 - **dbt as documentation:** `sources.yml` declares physical tables; each model is a named step with tests.
 - **Lineage:** `dbt docs generate` produces a DAG; `lineage/render_lineage.py` exports a Mermaid graph from `target/manifest.json`.
 
 ## Prerequisites
 
 - Docker + Docker Compose
-- Python 3.11+ (recommended)
+- Python **3.11–3.13** (dbt-core does not support 3.14+ yet; `scripts/bootstrap.sh` picks `python3.13` / `python3.12` / `python3.11` from PATH)
 
 ## Quick start
 
@@ -73,28 +77,30 @@ One-shot (starts Docker, waits briefly, then seed + dbt + tests + docs + lineage
 make demo
 ```
 
-**dbt profile:** `scripts/bootstrap.sh` copies `dbt_project/profiles.yml.example` → `dbt_project/profiles.yml`. All targets use `DBT_PROFILES_DIR` pointing at `dbt_project/` and read `ANALYTICS_DB_*` from `.env`.
+**dbt profile:** `scripts/bootstrap.sh` copies `dbt_project/profiles.yml.example` → `dbt_project/profiles.yml`. All targets use `DBT_PROFILES_DIR` pointing at `dbt_project/` and read `ANALYTICS_DB_`* from `.env`.
 
 ## Source → mart flow
 
-| Source (operational + raw mirror) | Staging | Intermediate | Marts |
-|-----------------------------------|---------|----------------|-------|
-| `raw_lending.branches` | `stg_lending_branches` | — | `dim_branch` |
-| `raw_lending.customers` | `stg_lending_customers` | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer` |
-| `raw_lending.loan_applications` | `stg_lending_loan_applications` | — | (via facts context) |
-| `raw_lending.loans` | `stg_lending_loans` | `int_daily_loan_cashflow` | `fct_loan_disbursement` |
-| `raw_lending.repayments` | `stg_lending_repayments` | `int_daily_loan_cashflow` | `fct_repayment` |
-| `raw_insurance.policy_holders` | `stg_insurance_policy_holders` | identity + `int_customer_360` | `dim_customer` |
-| `raw_insurance.policies` | `stg_insurance_policies` | `int_policy_claim_summary` | `fct_policy` |
-| `raw_insurance.claims` | `stg_insurance_claims` | `int_policy_claim_summary` | `fct_claim` |
-| (calendar spine) | — | — | `dim_date` |
-| Facts + dims | — | — | `mart_branch_monthly_performance` |
+
+| Source (operational + raw mirror) | Staging                         | Intermediate                                           | Marts                             |
+| --------------------------------- | ------------------------------- | ------------------------------------------------------ | --------------------------------- |
+| `raw_lending.branches`            | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
+| `raw_lending.customers`           | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
+| `raw_lending.loan_applications`   | `stg_lending_loan_applications` | —                                                      | (via facts context)               |
+| `raw_lending.loans`               | `stg_lending_loans`             | `int_daily_loan_cashflow`                              | `fct_loan_disbursement`           |
+| `raw_lending.repayments`          | `stg_lending_repayments`        | `int_daily_loan_cashflow`                              | `fct_repayment`                   |
+| `raw_insurance.policy_holders`    | `stg_insurance_policy_holders`  | identity + `int_customer_360`                          | `dim_customer`                    |
+| `raw_insurance.policies`          | `stg_insurance_policies`        | `int_policy_claim_summary`                             | `fct_policy`                      |
+| `raw_insurance.claims`            | `stg_insurance_claims`          | `int_policy_claim_summary`                             | `fct_claim`                       |
+| (calendar spine)                  | —                               | —                                                      | `dim_date`                        |
+| Facts + dims                      | —                               | —                                                      | `mart_branch_monthly_performance` |
+
 
 ## Data model notes
 
 - **Grains:** `fct_loan_disbursement` = one row per loan; `fct_repayment` = one row per repayment; `fct_policy` = one row per policy; `fct_claim` = one row per claim; `mart_branch_monthly_performance` = `branch_id` × `month_start_date`.
 - **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (from raw `loaded_at` when present).
-- **`dim_customer.customer_key`:** equals `master_customer_id` from identity resolution (MD5-based deterministic surrogate).
+- `**dim_customer.customer_key`:** equals `master_customer_id` from identity resolution (MD5-based deterministic surrogate).
 
 ## Identity resolution (deterministic)
 
@@ -137,16 +143,18 @@ limit 20;
 
 ## Synthetic data volumes (approximate)
 
-| Entity | Count |
-|--------|------:|
+
+| Entity            | Count |
+| ----------------- | ----- |
 | Lending customers | 2,000 |
-| Policy holders | 2,000 |
-| Branches | 5 |
+| Policy holders    | 2,000 |
+| Branches          | 5     |
 | Loan applications | 3,000 |
-| Loans | 2,000 |
-| Repayments | 8,000 |
-| Policies | 1,500 |
-| Claims | 300 |
+| Loans             | 2,000 |
+| Repayments        | 8,000 |
+| Policies          | 1,500 |
+| Claims            | 300   |
+
 
 Overlap: ~900 exact national_id matches, ~200 phone+name matches (insurance `national_id` intentionally null), ~900 lending-only, ~900 insurance-only — designed to surface mastering edge cases.
 
@@ -159,11 +167,13 @@ Overlap: ~900 exact national_id matches, ~200 phone+name matches (insurance `nat
 
 ## Ports (default `.env.example`)
 
-| Service | Host port |
-|---------|-----------|
-| source_db_1 | 5433 |
-| source_db_2 | 5434 |
-| analytics_db | 5435 |
+
+| Service      | Host port |
+| ------------ | --------- |
+| source_db_1  | 5433      |
+| source_db_2  | 5434      |
+| analytics_db | 5435      |
+
 
 ## License
 
