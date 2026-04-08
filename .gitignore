@@ -10,3 +10,5 @@ dbt_project/dbt_packages/
 dbt_project/profiles.yml
 .cursor/
 .DS_Store
+./.DS_Store
+*/.DS_Store

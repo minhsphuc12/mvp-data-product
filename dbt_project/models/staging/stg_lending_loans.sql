@@ -1,4 +1,15 @@
-{{ config(tags=["staging", "lending"]) }}
+{{
+  config(
+    materialized='incremental',
+    unique_key='loan_id',
+    incremental_strategy='merge',
+    tags=['staging', 'lending'],
+  )
+}}
+/*
+  Incremental staging example: refresh rows from raw when loaded_at advances (CDC / micro-batch).
+  Full refresh: dbt run --select stg_lending_loans --full-refresh
+*/
 
 select
     loan_id,
@@ -13,3 +24,6 @@ select
     'lending_core' as source_system,
     coalesce(loaded_at, current_timestamp) as loaded_at
 from {{ source('raw_lending', 'loans') }}
+{% if is_incremental() %}
+where coalesce(loaded_at, current_timestamp) > (select coalesce(max(loaded_at), '1970-01-01'::timestamptz) from {{ this }})
+{% endif %}
