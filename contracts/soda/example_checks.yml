@@ -1,9 +1,112 @@
 # Example Soda Core check file (optional). Install: pip install soda-core-postgres
 # Run: soda scan -d finance_demo -c example_checks.yml (after configuring connection)
 #
-# This is a stub; wire to your Soda data source name and warehouse.
+# Notes:
+# - Dataset names below use the `schema.table` format (Postgres).
+# - Keep these checks aligned with the raw-layer contracts under `contracts/schemas/`.
 
-checks for raw_lending_loans:
-  - missing_count(loan_id) = 0
+checks for raw_lending.branches:
+  - missing_count(branch_id) = 0
+  - duplicate_count(branch_id) = 0
+  - missing_count(branch_name) = 0
+  - missing_count(city) = 0
+  - missing_count(opened_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+
+checks for raw_lending.customers:
+  - missing_count(customer_id) = 0
+  - duplicate_count(customer_id) = 0
+  - missing_count(phone_number) = 0
+  - missing_count(full_name) = 0
+  - missing_count(primary_branch_id) = 0
+  - missing_count(created_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+  - invalid_count(email) = 0:
+      valid regex: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+      filter: "email is not null"
+
+checks for raw_lending.loan_applications:
+  - missing_count(application_id) = 0
+  - duplicate_count(application_id) = 0
+  - missing_count(customer_id) = 0
+  - missing_count(branch_id) = 0
+  - missing_count(amount_requested) = 0
+  - min(amount_requested) >= 0
+  - missing_count(status) = 0
   - invalid_count(status) = 0:
-      valid values: ['active', 'closed', 'defaulted']
+      valid values: ["pending", "approved", "rejected"]
+  - missing_count(applied_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+
+checks for raw_lending.loans:
+  - missing_count(loan_id) = 0
+  - duplicate_count(loan_id) = 0
+  - missing_count(customer_id) = 0
+  - missing_count(branch_id) = 0
+  - missing_count(principal_amount) = 0
+  - min(principal_amount) >= 0
+  - missing_count(status) = 0
+  - invalid_count(status) = 0:
+      valid values: ["active", "closed", "defaulted"]
+  - missing_count(disbursement_date) = 0
+  - missing_count(created_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+
+checks for raw_lending.repayments:
+  - missing_count(repayment_id) = 0
+  - duplicate_count(repayment_id) = 0
+  - missing_count(loan_id) = 0
+  - missing_count(amount) = 0
+  - min(amount) >= 0
+  - missing_count(paid_at) = 0
+  - missing_count(status) = 0
+  - invalid_count(status) = 0:
+      valid values: ["completed", "failed"]
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+
+checks for raw_insurance.policy_holders:
+  - missing_count(policy_holder_id) = 0
+  - duplicate_count(policy_holder_id) = 0
+  - missing_count(phone_number) = 0
+  - missing_count(full_name) = 0
+  - missing_count(created_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+  - invalid_count(email) = 0:
+      valid regex: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+      filter: "email is not null"
+
+checks for raw_insurance.policies:
+  - missing_count(policy_id) = 0
+  - duplicate_count(policy_id) = 0
+  - missing_count(policy_holder_id) = 0
+  - missing_count(policy_number) = 0
+  - duplicate_count(policy_number) = 0
+  - missing_count(product_type) = 0
+  - missing_count(premium_amount) = 0
+  - min(premium_amount) >= 0
+  - missing_count(coverage_start_date) = 0
+  - missing_count(coverage_end_date) = 0
+  - missing_count(status) = 0
+  - invalid_count(status) = 0:
+      valid values: ["active", "lapsed", "cancelled"]
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d
+
+checks for raw_insurance.claims:
+  - missing_count(claim_id) = 0
+  - duplicate_count(claim_id) = 0
+  - missing_count(policy_id) = 0
+  - missing_count(claim_amount) = 0
+  - min(claim_amount) >= 0
+  - missing_count(status) = 0
+  - invalid_count(status) = 0:
+      valid values: ["open", "approved", "denied", "closed"]
+  - missing_count(filed_at) = 0
+  - missing_count(loaded_at) = 0
+  - freshness(loaded_at) < 2d

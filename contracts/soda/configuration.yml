@@ -1,0 +1,15 @@
+# Soda configuration (SodaCL) for the local demo warehouse.
+#
+# Usage:
+#   set -a && source .env && set +a
+#   .venv/bin/soda scan -d finance_demo -c contracts/soda/configuration.yml contracts/soda/example_checks.yml
+#
+# This file uses environment variables so we don't hardcode credentials.
+
+data_source finance_demo:
+  type: postgres
+  host: ${ANALYTICS_DB_HOST}
+  port: ${ANALYTICS_DB_PORT}
+  username: ${ANALYTICS_DB_USER}
+  password: ${ANALYTICS_DB_PASSWORD}
+  database: ${ANALYTICS_DB_DATABASE}
