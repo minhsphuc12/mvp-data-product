@@ -1,0 +1,68 @@
+version: 2
+
+semantic_models:
+  - name: branch_monthly_performance
+    model: ref('mart_branch_monthly_performance')
+    description: >
+      Branch × calendar month grain. Insurance-derived measures only include customers
+      resolved to lending with a non-null primary_branch_id (see data product doc).
+    defaults:
+      agg_time_dimension: month_start_date
+    entities:
+      - name: branch_month
+        type: primary
+        expr: branch_month_sk
+    dimensions:
+      - name: month_start_date
+        type: time
+        type_params:
+          time_granularity: month
+      - name: branch_id
+        type: categorical
+    measures:
+      - name: loan_disbursement_amount
+        description: Sum of loan principal disbursed in the branch-month
+        agg: sum
+        expr: loan_disbursement_amount
+      - name: number_of_loans
+        description: Count of loans disbursed in the branch-month
+        agg: sum
+        expr: number_of_loans
+      - name: repayment_amount
+        description: Sum of completed repayments attributed to the branch-month
+        agg: sum
+        expr: repayment_amount
+      - name: active_policy_count
+        description: Distinct active policies overlapping the month (branch-attributed)
+        agg: sum
+        expr: active_policy_count
+      - name: claim_amount
+        description: Sum of claim amounts filed in the month (branch-attributed)
+        agg: sum
+        expr: claim_amount
+      - name: cross_sell_customer_count
+        description: Distinct customers with both disbursement and active policy in the branch-month
+        agg: sum
+        expr: cross_sell_customer_count
+
+metrics:
+  - name: total_loan_disbursement_amount
+    label: Total loan disbursement amount
+    type: simple
+    type_params:
+      measure: loan_disbursement_amount
+    description: Sum of loan_disbursement_amount across selected branch-months
+
+  - name: total_repayment_amount
+    label: Total repayment amount
+    type: simple
+    type_params:
+      measure: repayment_amount
+    description: Sum of repayment_amount (completed repayments) across selected branch-months
+
+  - name: total_active_policies
+    label: Total active policy slots (branch-month)
+    type: simple
+    type_params:
+      measure: active_policy_count
+    description: Sum of active_policy_count; interpret at branch × month grain

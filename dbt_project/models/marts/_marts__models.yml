@@ -3,10 +3,13 @@ version: 2
 models:
   - name: dim_date
     description: "Calendar dimension generated from a contiguous date spine."
+    time_spine:
+      standard_granularity_column: date_day
     columns:
       - name: date_key
         tests: [unique, not_null]
       - name: date_day
+        granularity: day
         tests: [unique, not_null]
 
   - name: dim_branch
