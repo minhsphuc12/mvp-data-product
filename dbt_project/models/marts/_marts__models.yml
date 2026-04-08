@@ -27,6 +27,13 @@ models:
 
   - name: fct_loan_disbursement
     description: "One row per loan disbursement (loan_id grain)."
+    config:
+      indexes:
+        - columns: [loan_id]
+          unique: true
+        - columns: [customer_key]
+        - columns: [disbursement_date_key]
+        - columns: [branch_key, disbursement_date_key]
     columns:
       - name: loan_id
         tests: [unique, not_null]
@@ -51,6 +58,14 @@ models:
 
   - name: fct_repayment
     description: "One row per repayment event."
+    config:
+      indexes:
+        - columns: [repayment_id]
+          unique: true
+        - columns: [loan_id]
+        - columns: [customer_key]
+        - columns: [payment_date_key]
+        - columns: [branch_key, payment_date_key]
     columns:
       - name: repayment_id
         tests: [unique, not_null]
@@ -63,12 +78,27 @@ models:
 
   - name: fct_policy
     description: "One row per insurance policy."
+    config:
+      indexes:
+        - columns: [policy_id]
+          unique: true
+        - columns: [customer_key]
+        - columns: [coverage_start_date_key]
+        - columns: [coverage_end_date_key]
+        - columns: [policy_holder_id]
     columns:
       - name: policy_id
         tests: [unique, not_null]
 
   - name: fct_claim
     description: "One row per claim."
+    config:
+      indexes:
+        - columns: [claim_id]
+          unique: true
+        - columns: [policy_id]
+        - columns: [customer_key]
+        - columns: [filed_date_key]
     columns:
       - name: claim_id
         tests: [unique, not_null]

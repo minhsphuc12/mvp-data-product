@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Read dbt manifest.json and emit a simple Mermaid flowchart of model dependencies.
+Read dbt manifest.json and emit a simple Mermaid flowchart of model and source dependencies.
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 def load_manifest(path: Path) -> Dict[str, Any]:
@@ -18,11 +18,32 @@ def load_manifest(path: Path) -> Dict[str, Any]:
         return json.load(f)
 
 
+def _source_label(source_node: Dict[str, Any]) -> Optional[str]:
+    source_name = source_node.get("source_name") or ""
+    table_name = source_node.get("name") or ""
+    if source_name and table_name:
+        return f"{source_name}.{table_name}"
+    return table_name or source_name or None
+
+
+def _resolve_dependency(
+    manifest: Dict[str, Any], dep_id: str
+) -> Optional[str]:
+    """Return upstream label for Mermaid: model name or source_name.table_name."""
+    dep = manifest.get("nodes", {}).get(dep_id, {})
+    if dep.get("resource_type") == "model":
+        return dep.get("name")
+    src = manifest.get("sources", {}).get(dep_id, {})
+    if src.get("resource_type") == "source":
+        return _source_label(src)
+    return None
+
+
 def model_edges(manifest: Dict[str, Any]) -> Tuple[List[str], List[Tuple[str, str]]]:
     nodes: Set[str] = set()
     edges: List[Tuple[str, str]] = []
 
-    for unique_id, node in manifest.get("nodes", {}).items():
+    for _unique_id, node in manifest.get("nodes", {}).items():
         if node.get("resource_type") != "model":
             continue
         name = node.get("name")
@@ -30,12 +51,10 @@ def model_edges(manifest: Dict[str, Any]) -> Tuple[List[str], List[Tuple[str, st
             continue
         nodes.add(name)
         for dep_id in node.get("depends_on", {}).get("nodes", []):
-            dep = manifest.get("nodes", {}).get(dep_id, {})
-            if dep.get("resource_type") != "model":
-                continue
-            dep_name = dep.get("name")
-            if dep_name:
-                edges.append((dep_name, name))
+            dep_label = _resolve_dependency(manifest, dep_id)
+            if dep_label:
+                nodes.add(dep_label)
+                edges.append((dep_label, name))
 
     return sorted(nodes), edges
 
@@ -84,7 +103,9 @@ def main() -> int:
 
         md_path = output_path.with_suffix(".md")
         md_path.write_text(
-            "# dbt model lineage (Mermaid)\n\n```mermaid\n" + text + "```\n",
+            "# dbt lineage — models and raw sources (Mermaid)\n\n```mermaid\n"
+            + text
+            + "```\n",
             encoding="utf-8",
         )
         print(f"Wrote {output_path} and {md_path}")
