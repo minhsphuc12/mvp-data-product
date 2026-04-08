@@ -1,0 +1,28 @@
+contract_version: "1.0.0"
+schema: raw_insurance
+table: policy_holders
+description: Insurance policy holders mirrored into analytics.
+owner: finance_demo
+columns:
+  policy_holder_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  national_id:
+    physical_type: varchar
+    nullable: true
+  phone_number:
+    physical_type: varchar
+    nullable: false
+  full_name:
+    physical_type: varchar
+    nullable: false
+  email:
+    physical_type: varchar
+    nullable: true
+  created_at:
+    physical_type: timestamptz
+    nullable: false
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

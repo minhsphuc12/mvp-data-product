@@ -1,0 +1,35 @@
+contract_version: "1.0.0"
+schema: raw_lending
+table: loans
+description: Loans mirrored into analytics; `loaded_at` supports incremental staging.
+owner: finance_demo
+columns:
+  loan_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  application_id:
+    physical_type: integer
+    nullable: true
+  customer_id:
+    physical_type: integer
+    nullable: false
+  branch_id:
+    physical_type: integer
+    nullable: false
+  principal_amount:
+    physical_type: numeric
+    nullable: false
+  status:
+    physical_type: varchar
+    nullable: false
+    enum: [active, closed, defaulted]
+  disbursement_date:
+    physical_type: date
+    nullable: false
+  created_at:
+    physical_type: timestamptz
+    nullable: false
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

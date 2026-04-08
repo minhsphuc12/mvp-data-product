@@ -1,0 +1,22 @@
+contract_version: "1.0.0"
+schema: raw_lending
+table: branches
+description: Lending branch reference data mirrored into analytics.
+owner: finance_demo
+columns:
+  branch_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  branch_name:
+    physical_type: varchar
+    nullable: false
+  city:
+    physical_type: varchar
+    nullable: false
+  opened_at:
+    physical_type: timestamptz
+    nullable: false
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

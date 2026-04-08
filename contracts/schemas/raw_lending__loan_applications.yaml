@@ -1,0 +1,29 @@
+contract_version: "1.0.0"
+schema: raw_lending
+table: loan_applications
+description: Loan applications mirrored into analytics.
+owner: finance_demo
+columns:
+  application_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  customer_id:
+    physical_type: integer
+    nullable: false
+  branch_id:
+    physical_type: integer
+    nullable: false
+  amount_requested:
+    physical_type: numeric
+    nullable: false
+  status:
+    physical_type: varchar
+    nullable: false
+    enum: [pending, approved, rejected]
+  applied_at:
+    physical_type: timestamptz
+    nullable: false
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

@@ -1,0 +1,26 @@
+contract_version: "1.0.0"
+schema: raw_lending
+table: repayments
+description: Loan repayments mirrored into analytics.
+owner: finance_demo
+columns:
+  repayment_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  loan_id:
+    physical_type: integer
+    nullable: false
+  amount:
+    physical_type: numeric
+    nullable: false
+  paid_at:
+    physical_type: timestamptz
+    nullable: false
+  status:
+    physical_type: varchar
+    nullable: false
+    enum: [completed, failed]
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

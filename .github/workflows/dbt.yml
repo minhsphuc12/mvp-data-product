@@ -1,0 +1,51 @@
+name: dbt
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure env and dbt profile
+        run: |
+          cp .env.example .env
+          cp dbt_project/profiles.yml.example dbt_project/profiles.yml
+
+      - name: Start Postgres (Docker Compose)
+        run: docker compose --env-file .env up -d
+
+      - name: Wait for databases
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            if docker compose --env-file .env exec -T analytics_db pg_isready -U demo -d analytics_db \
+              && docker compose --env-file .env exec -T source_db_1 pg_isready -U demo -d lending_db \
+              && docker compose --env-file .env exec -T source_db_2 pg_isready -U demo -d insurance_db; then
+              echo "All databases ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Timeout waiting for Postgres"
+          docker compose --env-file .env ps
+          exit 1
+
+      - name: Validate data contracts
+        run: make validate-contracts
+
+      - name: Seed and dbt
+        run: |
+          make seed-data transform test

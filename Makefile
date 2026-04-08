@@ -4,7 +4,7 @@ export PYTHONPATH := $(ROOT)
 PY := $(if $(wildcard $(ROOT).venv/bin/python),$(ROOT).venv/bin/python,python3)
 DBT := $(if $(wildcard $(ROOT).venv/bin/dbt),$(ROOT).venv/bin/dbt,dbt)
 
-.PHONY: up down seed-data transform test docs lineage demo bootstrap check-dbt-python
+.PHONY: up down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh
 
 # dbt-core fails on Python 3.14+; ensure .venv uses 3.11–3.13 (recreate via scripts/bootstrap.sh).
 check-dbt-python:
@@ -29,6 +29,12 @@ test: check-dbt-python
 	export DBT_PROFILES_DIR="$(ROOT)dbt_project" && \
 	cd dbt_project && $(DBT) test --project-dir . --profiles-dir .
 
+validate-contracts:
+	$(PY) "$(ROOT)scripts/validate_data_contracts.py"
+
+flow-refresh:
+	$(PY) "$(ROOT)orchestration/refresh_flow.py"
+
 docs: check-dbt-python
 	set -a && source .env && set +a && \
 	export DBT_PROFILES_DIR="$(ROOT)dbt_project" && \
@@ -42,7 +48,7 @@ lineage:
 demo: up
 	@echo "Waiting for Postgres healthchecks..."
 	@sleep 8
-	$(MAKE) seed-data transform test docs lineage
+	$(MAKE) validate-contracts seed-data transform test docs lineage
 
 bootstrap:
 	bash "$(ROOT)scripts/bootstrap.sh"

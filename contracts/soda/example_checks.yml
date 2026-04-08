@@ -1,0 +1,9 @@
+# Example Soda Core check file (optional). Install: pip install soda-core-postgres
+# Run: soda scan -d finance_demo -c example_checks.yml (after configuring connection)
+#
+# This is a stub; wire to your Soda data source name and warehouse.
+
+checks for raw_lending_loans:
+  - missing_count(loan_id) = 0
+  - invalid_count(status) = 0:
+      valid values: ['active', 'closed', 'defaulted']

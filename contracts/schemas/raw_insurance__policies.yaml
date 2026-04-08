@@ -1,0 +1,36 @@
+contract_version: "1.0.0"
+schema: raw_insurance
+table: policies
+description: Insurance policies mirrored into analytics.
+owner: finance_demo
+columns:
+  policy_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  policy_holder_id:
+    physical_type: integer
+    nullable: false
+  policy_number:
+    physical_type: varchar
+    nullable: false
+    unique: true
+  product_type:
+    physical_type: varchar
+    nullable: false
+  premium_amount:
+    physical_type: numeric
+    nullable: false
+  coverage_start_date:
+    physical_type: date
+    nullable: false
+  coverage_end_date:
+    physical_type: date
+    nullable: false
+  status:
+    physical_type: varchar
+    nullable: false
+    enum: [active, lapsed, cancelled]
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false
