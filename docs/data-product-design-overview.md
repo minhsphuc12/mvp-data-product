@@ -79,13 +79,16 @@ Synthetic data only; no real PII. National IDs and phones are random numeric pat
 
 ## 9. Roadmap ideas
 
+**Canonical status table:** [roadmap.md](roadmap.md) (themes A/B/C: realtime, dictionary/metrics, data contracts).
 
-| Theme       | Idea                                                                |
-| ----------- | ------------------------------------------------------------------- |
-| Consumption | Add Metabase (Compose) pointing at `analytics_db`                   |
-| Modeling    | SCD2 `dim_customer`, role-playing dates on facts                    |
-| Metrics     | dbt Metrics / Semantic Layer (version-dependent)                    |
-| Operations  | Scheduled refresh, incremental `raw_`* loads, data quality monitors |
-| Governance  | Promote lineage export into internal wiki or catalog                |
+| Theme       | Idea                                                                | Status (see roadmap)        |
+| ----------- | ------------------------------------------------------------------- | --------------------------- |
+| Consumption | Metabase (Compose profile `bi`) pointing at `analytics_db`          | Implemented (optional)      |
+| Modeling    | SCD2 `dim_customer`, role-playing dates on facts                    | Planned                     |
+| Metrics     | dbt Semantic Layer on `mart_branch_monthly_performance`             | Implemented                 |
+| Dictionary  | Business glossary (`docs/glossary.md`)                              | Implemented                 |
+| Operations  | CI dbt test, explicit raw contracts, Prefect example flow          | Partially implemented       |
+| Realtime    | `wal_level=logical`, incremental staging example, CDC doc           | Foundations (see roadmap)   |
+| Governance  | Catalog options (`docs/catalog.md`), lineage export to wiki         | Partially documented        |
 
 

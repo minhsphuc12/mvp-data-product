@@ -4,8 +4,8 @@ This document describes the **local demo** finance data platform: components, ru
 
 ## 1. Scope and goals
 
-- **In scope:** Two operational Postgres databases, one analytics Postgres, batch synthetic load, dbt transformations, local lineage artifacts.
-- **Out of scope:** CDC, streaming, orchestrators (Airflow, Kafka, Spark), cloud services, enterprise metadata servers (OpenMetadata, DataHub), production HA.
+- **In scope:** Two operational Postgres databases, one analytics Postgres, batch synthetic load, dbt transformations, local lineage artifacts, optional Metabase (Compose profile `bi`), explicit raw YAML contracts, GitHub Actions CI, optional Prefect flow, incremental staging example.
+- **Out of scope (by default):** Full streaming stack (Kafka, Debezium), production HA, hosted catalog deployment. See [roadmap.md](roadmap.md) and [realtime-and-cdc.md](realtime-and-cdc.md) for extension paths.
 
 **Primary goal:** Make **data origin and transformations inspectable** in under 30 minutes for a single engineer.
 
@@ -35,7 +35,7 @@ This is **batch replication**, not log-based CDC.
 | Schema | Owner / tool | Contents |
 |--------|----------------|----------|
 | `raw_lending`, `raw_insurance` | Python loader | Mirrored operational tables |
-| `staging` | dbt | `stg_*` views: renamed columns, audits, light cleansing |
+| `staging` | dbt | Mostly `stg_*` views; `stg_lending_loans` is an incremental table (merge on `loan_id`) for CDC-style demos |
 | `intermediate` | dbt | Identity resolution, 360 view, loan cashflow, policy-claim rollups |
 | `marts` | dbt (tables) | Dimensions, facts, `mart_branch_monthly_performance` |
 

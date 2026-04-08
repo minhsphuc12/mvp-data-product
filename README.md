@@ -11,6 +11,10 @@ Minimal, transparent stack: two operational Postgres databases (lending + insura
 | [docs/data-design-and-flow.md](docs/data-design-and-flow.md)                   | Entities, ER-style overview, layers, identity rules, data flow |
 | [docs/data-product-design-overview.md](docs/data-product-design-overview.md)   | Mart KPIs, audiences, limitations, roadmap                     |
 | [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md) | dbt docs, Mermaid export, extensions                           |
+| [docs/roadmap.md](docs/roadmap.md)                                             | Done vs planned: realtime, metrics/dictionary, data contracts  |
+| [docs/glossary.md](docs/glossary.md)                                           | Business terms and KPI plain-language definitions               |
+| [docs/catalog.md](docs/catalog.md)                                             | Optional enterprise catalog tools (DataHub, OpenMetadata, etc.)   |
+| [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md)                           | CDC, streaming patterns, incremental staging notes              |
 
 
 ## Architecture
@@ -67,6 +71,7 @@ make up          # start three Postgres containers
 make seed-data   # synthetic data → sources + raw mirror on analytics_db
 make transform   # dbt run
 make test        # dbt test
+make validate-contracts  # align contracts/schemas/*.yaml with dbt sources.yml
 make docs        # dbt docs generate (artifacts under dbt_project/target/)
 make lineage     # lineage/lineage.mmd + lineage/lineage.md
 ```
@@ -158,12 +163,26 @@ limit 20;
 
 Overlap: ~900 exact national_id matches, ~200 phone+name matches (insurance `national_id` intentionally null), ~900 lending-only, ~900 insurance-only — designed to surface mastering edge cases.
 
+## Metabase (optional BI)
+
+With the stack up (`make up`), start Metabase using the Compose profile **`bi`**:
+
+```bash
+docker compose --profile bi up -d
+```
+
+Open `http://localhost:${METABASE_PORT:-3000}` (see `.env.example`). Add a database connection using host **`analytics_db`**, port **5432**, database **`analytics_db`**, and the same user/password as `ANALYTICS_DB_*` (this hostname works from inside the Docker network; from the host use `localhost` and mapped port **5435** if you run Metabase outside Compose).
+
+Semantic metrics for `mart_branch_monthly_performance` are defined in dbt ([dbt_project/models/marts/_mart_branch_monthly_semantic.yml](dbt_project/models/marts/_mart_branch_monthly_semantic.yml)); Metabase can query marts directly or mirror metric names in its metric layer.
+
 ## Tradeoffs and next steps
 
-- **No CDC / ELT scheduler:** reload is batch-only via `make seed-data`.
+- **Default reload:** batch via `make seed-data`; optional **Prefect** flow in `orchestration/refresh_flow.py` (see `requirements-orchestration.txt`).
+- **`stg_lending_loans` is incremental** (merge on `loan_id`, watermark `loaded_at`). First-time or after model changes: `dbt run --select stg_lending_loans --full-refresh`.
+- **Source Postgres** runs with `wal_level=logical` for future CDC; see [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md).
 - **Identity rules are intentionally simple:** no probabilistic matching, no manual overrides table.
 - **Branch attribution for insurance:** policies and claims roll up to `primary_branch_id` only when the holder resolves to a lending customer; pure insurance customers are excluded from branch KPIs (documented choice for this demo).
-- **Possible extensions:** Metabase container, SCD2 on `dim_customer`, dbt metrics, orchestration (Airflow/Prefect), real replication (logical decoding / ELT tool).
+- **Roadmap:** [docs/roadmap.md](docs/roadmap.md) (SCD2, full streaming stack, Soda/GE, catalog deployment, etc.).
 
 ## Ports (default `.env.example`)
 
