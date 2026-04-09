@@ -46,5 +46,12 @@ Short definitions for conformed entities and key fields. Authoritative mart meas
 | `total_loan_disbursement_amount` | Sum of `loan_disbursement_amount` over selected branch-months. |
 | `total_repayment_amount` | Sum of `repayment_amount`. |
 | `total_active_policies` | Sum of `active_policy_count` (interpret at branch × month grain). |
+| `total_number_of_loans` | Sum of `number_of_loans`. |
+| `total_claim_amount` | Sum of `claim_amount`. |
+| `total_cross_sell_customers` | Sum of `cross_sell_customer_count`. |
+| `repayment_coverage_ratio` | `total_repayment_amount / total_loan_disbursement_amount` (null-safe denominator). |
+| `claim_to_disbursement_ratio` | `total_claim_amount / total_loan_disbursement_amount` (null-safe denominator). |
+| `avg_disbursement_per_loan` | `total_loan_disbursement_amount / total_number_of_loans` (weighted average by totals). |
+| `cross_sell_per_loan_ratio` | `total_cross_sell_customers / total_number_of_loans`. |
 
 Use `dbt sl query` (where available) or downstream BI on `mart_branch_monthly_performance` for exploration.

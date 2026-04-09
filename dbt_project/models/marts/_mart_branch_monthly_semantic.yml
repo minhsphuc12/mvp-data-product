@@ -66,3 +66,64 @@ metrics:
     type_params:
       measure: active_policy_count
     description: Sum of active_policy_count; interpret at branch × month grain
+
+  - name: total_number_of_loans
+    label: Total number of loans
+    type: simple
+    type_params:
+      measure: number_of_loans
+    description: Sum of number_of_loans across selected branch-months
+
+  - name: total_claim_amount
+    label: Total claim amount
+    type: simple
+    type_params:
+      measure: claim_amount
+    description: Sum of claim_amount across selected branch-months
+
+  - name: total_cross_sell_customers
+    label: Total cross-sell customers
+    type: simple
+    type_params:
+      measure: cross_sell_customer_count
+    description: Sum of cross_sell_customer_count across selected branch-months
+
+  - name: repayment_coverage_ratio
+    label: Repayment coverage ratio
+    type: derived
+    type_params:
+      expr: total_repayment_amount / nullif(total_loan_disbursement_amount, 0)
+      metrics:
+        - name: total_repayment_amount
+        - name: total_loan_disbursement_amount
+    description: Repayment amount as a share of disbursement amount in the selected slice
+
+  - name: claim_to_disbursement_ratio
+    label: Claim-to-disbursement ratio
+    type: derived
+    type_params:
+      expr: total_claim_amount / nullif(total_loan_disbursement_amount, 0)
+      metrics:
+        - name: total_claim_amount
+        - name: total_loan_disbursement_amount
+    description: Claim amount as a share of disbursement amount in the selected slice
+
+  - name: avg_disbursement_per_loan
+    label: Average disbursement per loan
+    type: derived
+    type_params:
+      expr: total_loan_disbursement_amount / nullif(total_number_of_loans, 0)
+      metrics:
+        - name: total_loan_disbursement_amount
+        - name: total_number_of_loans
+    description: Weighted average disbursement size computed from totals
+
+  - name: cross_sell_per_loan_ratio
+    label: Cross-sell customers per loan
+    type: derived
+    type_params:
+      expr: total_cross_sell_customers / nullif(total_number_of_loans, 0)
+      metrics:
+        - name: total_cross_sell_customers
+        - name: total_number_of_loans
+    description: Cross-sell customer count normalized by number of loans in the selected slice
