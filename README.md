@@ -13,6 +13,7 @@ Minimal, transparent stack: two operational Postgres databases (lending + insura
 | [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md) | dbt docs, Mermaid export, extensions                           |
 | [docs/roadmap.md](docs/roadmap.md)                                             | Done vs planned: realtime, metrics/dictionary, data contracts  |
 | [docs/glossary.md](docs/glossary.md)                                           | Business terms and KPI plain-language definitions               |
+| [docs/bi-setup-and-semantic-alignment.md](docs/bi-setup-and-semantic-alignment.md) | Local BI runbook and semantic-to-SQL KPI mapping            |
 | [docs/catalog.md](docs/catalog.md)                                             | Optional enterprise catalog tools (DataHub, OpenMetadata, etc.)   |
 | [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md)                           | CDC, streaming patterns, incremental staging notes              |
 
@@ -70,6 +71,8 @@ source .venv/bin/activate
 make up          # start three Postgres containers
 make seed-data   # synthetic data → sources + raw mirror on analytics_db
 make transform   # dbt run
+make semantic-build     # build curated semantic views under schema semantic
+make semantic-validate  # validate semantic views reconcile with mart totals
 make test        # dbt test
 make validate-contracts  # align contracts/schemas/*.yaml with dbt sources.yml
 make docs        # dbt docs generate (artifacts under dbt_project/target/)
@@ -165,15 +168,30 @@ Overlap: ~900 exact national_id matches, ~200 phone+name matches (insurance `nat
 
 ## Metabase (optional BI)
 
-With the stack up (`make up`), start Metabase using the Compose profile **`bi`**:
+With the stack up (`make up`), start Metabase:
 
 ```bash
-docker compose --profile bi up -d
+make bi-up
 ```
 
-Open `http://localhost:${METABASE_PORT:-3000}` (see `.env.example`). Add a database connection using host **`analytics_db`**, port **5432**, database **`analytics_db`**, and the same user/password as `ANALYTICS_DB_*` (this hostname works from inside the Docker network; from the host use `localhost` and mapped port **5435** if you run Metabase outside Compose).
+Open `http://localhost:${METABASE_PORT:-3000}` (see `.env.example`). If port `3000` is busy, set `METABASE_PORT` in `.env` (for example `3001`) and restart `make bi-up`.
 
-Semantic metrics for `mart_branch_monthly_performance` are defined in dbt ([dbt_project/models/marts/_mart_branch_monthly_semantic.yml](dbt_project/models/marts/_mart_branch_monthly_semantic.yml)); Metabase can query marts directly or mirror metric names in its metric layer.
+Add a database connection using host **`analytics_db`**, port **5432**, database **`analytics_db`**, and the same user/password as `ANALYTICS_DB_*` (this hostname works from inside the Docker network; from the host use `localhost` and mapped port **5435** if you run Metabase outside Compose).
+
+Stop Metabase:
+
+```bash
+make bi-down
+```
+
+Semantic metrics for `mart_branch_monthly_performance` are defined in dbt ([dbt_project/models/marts/_mart_branch_monthly_semantic.yml](dbt_project/models/marts/_mart_branch_monthly_semantic.yml)).
+For business-facing BI, use semantic curated views generated from [`bi/semantic/contract.yml`](bi/semantic/contract.yml) and exposed under `semantic.*` (instead of direct `marts.*` SQL).
+
+For reproducible BI queries aligned to semantic formulas, use:
+
+- [docs/bi-setup-and-semantic-alignment.md](docs/bi-setup-and-semantic-alignment.md)
+- `bi/sql/metabase_branch_monthly_kpi_base.sql`
+- `bi/sql/metabase_reports.sql`
 
 ## Tradeoffs and next steps
 

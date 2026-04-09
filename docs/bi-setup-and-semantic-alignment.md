@@ -1,6 +1,7 @@
 # BI setup and semantic alignment
 
 This guide makes BI reporting reproducible locally and keeps report numbers aligned with semantic metrics in `dbt_project/models/marts/_mart_branch_monthly_semantic.yml`.
+It also enforces a semantic-first consumption path so business users do not write SQL against marts tables directly.
 
 ## 1) Start the stack and build the mart
 
@@ -44,7 +45,31 @@ In Metabase:
    - Username/Password: values from `.env` (`ANALYTICS_DB_USER`, `ANALYTICS_DB_PASSWORD`)
 3. Save and trigger a schema sync.
 
-## 4) Build questions with semantic-consistent formulas
+## 4) Build semantic curated artifacts
+
+Generate curated semantic views in `analytics_db`:
+
+```bash
+make semantic-build
+```
+
+Validate reconciliation against source mart totals:
+
+```bash
+make semantic-validate
+```
+
+Contract location:
+
+- `bi/semantic/contract.yml`
+
+Generated artifacts (schema `semantic`):
+
+- `semantic.branch_monthly_kpi_base`
+- `semantic.executive_monthly_trend`
+- `semantic.branch_risk_watchlist`
+
+## 5) Build questions using semantic schema only
 
 Use SQL templates from:
 
@@ -53,11 +78,25 @@ Use SQL templates from:
 
 Important alignment rule:
 
-- Always compute ratio KPIs from **aggregated totals** at the selected grain.
-- Example (correct): `sum(repayment_amount) / nullif(sum(loan_disbursement_amount), 0)`
-- Avoid averaging pre-computed row-level ratios unless you intentionally need unweighted behavior.
+- Semantic curated views already enforce KPI formulas from the semantic contract.
+- If admin users still create native SQL questions, point only to `semantic.*` objects.
+- Business users should use GUI questions and dashboards on top of semantic models.
 
-## 5) Suggested dashboard tiles
+## 6) Restrict business access (no native SQL on marts)
+
+1. Run grants:
+
+```sql
+-- Execute file: bi/sql/metabase_business_permissions.sql
+```
+
+2. In Metabase:
+   - Create groups: `Business`, `Analyst`, `Admin`.
+   - Disable Native query editor for `Business`.
+   - Set table permissions for `Business` to allow only `semantic` schema.
+3. Publish curated questions/dashboards in shared collections and give `Business` read access only.
+
+## 7) Suggested dashboard tiles
 
 1. **Executive trend (monthly):**
    - `total_loan_disbursement_amount`
@@ -71,24 +110,25 @@ Important alignment rule:
    - Highest `claim_to_disbursement_ratio`
    - Keep `loan_disbursement_amount > 0` filter
 
-## 6) Validation checklist before sharing reports
+## 8) Validation checklist before sharing reports
 
-1. Numbers reconcile with mart totals using direct SQL on `marts.mart_branch_monthly_performance`.
+1. `make semantic-validate` passes.
 2. Ratios use null-safe denominator (`nullif(..., 0)`).
 3. Date filter is at month grain (`month_start_date`).
 4. Branch filter uses `branch_id`.
+5. Business group has no native SQL access in Metabase.
 
-## 7) Mapping to semantic metrics
+## 9) Mapping to semantic metrics
 
-| Semantic metric | SQL expression on mart |
+| Semantic metric | Curated semantic output |
 | --- | --- |
-| `total_loan_disbursement_amount` | `sum(loan_disbursement_amount)` |
-| `total_repayment_amount` | `sum(repayment_amount)` |
-| `total_active_policies` | `sum(active_policy_count)` |
-| `total_number_of_loans` | `sum(number_of_loans)` |
-| `total_claim_amount` | `sum(claim_amount)` |
-| `total_cross_sell_customers` | `sum(cross_sell_customer_count)` |
-| `repayment_coverage_ratio` | `sum(repayment_amount) / nullif(sum(loan_disbursement_amount), 0)` |
-| `claim_to_disbursement_ratio` | `sum(claim_amount) / nullif(sum(loan_disbursement_amount), 0)` |
-| `avg_disbursement_per_loan` | `sum(loan_disbursement_amount) / nullif(sum(number_of_loans), 0)` |
-| `cross_sell_per_loan_ratio` | `sum(cross_sell_customer_count) / nullif(sum(number_of_loans), 0)` |
+| `total_loan_disbursement_amount` | `semantic.branch_monthly_kpi_base.total_loan_disbursement_amount` |
+| `total_repayment_amount` | `semantic.branch_monthly_kpi_base.total_repayment_amount` |
+| `total_active_policies` | `semantic.branch_monthly_kpi_base.total_active_policies` |
+| `total_number_of_loans` | `semantic.branch_monthly_kpi_base.total_number_of_loans` |
+| `total_claim_amount` | `semantic.branch_monthly_kpi_base.total_claim_amount` |
+| `total_cross_sell_customers` | `semantic.branch_monthly_kpi_base.total_cross_sell_customers` |
+| `repayment_coverage_ratio` | `semantic.branch_monthly_kpi_base.repayment_coverage_ratio` |
+| `claim_to_disbursement_ratio` | `semantic.branch_monthly_kpi_base.claim_to_disbursement_ratio` |
+| `avg_disbursement_per_loan` | `semantic.branch_monthly_kpi_base.avg_disbursement_per_loan` |
+| `cross_sell_per_loan_ratio` | `semantic.branch_monthly_kpi_base.cross_sell_per_loan_ratio` |

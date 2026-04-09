@@ -45,6 +45,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | dbt Semantic Layer (semantic model + metrics) on branch monthly mart | Done | `models/marts/_mart_branch_monthly_semantic.yml`. |
 | Metabase (optional Compose service) | Done | `make bi-up`; connect to `analytics_db` on the internal network. |
 | BI semantic alignment guide + SQL templates | Done | `docs/bi-setup-and-semantic-alignment.md` and `bi/sql/*`. |
+| Semantic curated serving layer for BI (`semantic` schema + build/validate scripts) | Done | `bi/semantic/contract.yml`, `scripts/build_semantic_artifacts.py`, `scripts/validate_semantic_artifacts.py`. |
 | Enterprise catalog (DataHub, OpenMetadata, dbt Cloud) | Planned | Pointers in [catalog.md](catalog.md). |
 
 ---

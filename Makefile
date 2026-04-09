@@ -4,7 +4,7 @@ export PYTHONPATH := $(ROOT)
 PY := $(if $(wildcard $(ROOT).venv/bin/python),$(ROOT).venv/bin/python,python3)
 DBT := $(if $(wildcard $(ROOT).venv/bin/dbt),$(ROOT).venv/bin/dbt,dbt)
 
-.PHONY: up down bi-up bi-down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh
+.PHONY: up down bi-up bi-down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh semantic-build semantic-validate
 
 # dbt-core fails on Python 3.14+; ensure .venv uses 3.11–3.13 (recreate via scripts/bootstrap.sh).
 check-dbt-python:
@@ -41,6 +41,14 @@ validate-contracts:
 flow-refresh:
 	$(PY) "$(ROOT)orchestration/refresh_flow.py"
 
+semantic-build:
+	set -a && source .env && set +a && \
+	$(PY) "$(ROOT)scripts/build_semantic_artifacts.py"
+
+semantic-validate:
+	set -a && source .env && set +a && \
+	$(PY) "$(ROOT)scripts/validate_semantic_artifacts.py"
+
 docs: check-dbt-python
 	set -a && source .env && set +a && \
 	export DBT_PROFILES_DIR="$(ROOT)dbt_project" && \
@@ -54,7 +62,7 @@ lineage:
 demo: up
 	@echo "Waiting for Postgres healthchecks..."
 	@sleep 8
-	$(MAKE) validate-contracts seed-data transform test docs lineage
+	$(MAKE) validate-contracts seed-data transform semantic-build semantic-validate test docs lineage
 
 bootstrap:
 	bash "$(ROOT)scripts/bootstrap.sh"
