@@ -4,7 +4,7 @@ export PYTHONPATH := $(ROOT)
 PY := $(if $(wildcard $(ROOT).venv/bin/python),$(ROOT).venv/bin/python,python3)
 DBT := $(if $(wildcard $(ROOT).venv/bin/dbt),$(ROOT).venv/bin/dbt,dbt)
 
-.PHONY: up down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh
+.PHONY: up down bi-up bi-down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh
 
 # dbt-core fails on Python 3.14+; ensure .venv uses 3.11–3.13 (recreate via scripts/bootstrap.sh).
 check-dbt-python:
@@ -15,6 +15,12 @@ up:
 
 down:
 	docker compose --env-file .env down
+
+bi-up:
+	docker compose --env-file .env --profile bi up -d metabase
+
+bi-down:
+	docker compose --env-file .env --profile bi stop metabase
 
 seed-data:
 	set -a && source .env && set +a && $(PY) -m data_gen.load_data

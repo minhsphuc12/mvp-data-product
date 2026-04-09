@@ -4,10 +4,10 @@ exposures:
   - name: branch_monthly_executive_view
     type: dashboard
     maturity: low
-    url: "http://localhost:8080" # placeholder — wire to Metabase later if desired
+    url: "http://localhost:3000"
     description: >
-      Conceptual executive view of branch × month KPIs sourced from
-      mart_branch_monthly_performance (loan volume, repayments, policies, claims, cross-sell).
+      Local Metabase executive view of branch × month KPIs sourced from
+      mart_branch_monthly_performance and aligned to semantic metric formulas.
     depends_on:
       - ref('mart_branch_monthly_performance')
     owner:

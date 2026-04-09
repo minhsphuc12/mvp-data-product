@@ -54,6 +54,7 @@ This document frames the demo as a **data product**: who it serves, what they ge
 1. **Trust / lineage:** Engineer opens dbt docs DAG or `lineage/lineage.md` to see model dependencies.
 2. **Quality:** Engineer runs `make test` for source and mart tests (`unique`, `not_null`, `relationships`, `accepted_values`).
 3. **Analysis:** Analyst queries `mart_branch_monthly_performance` and drills to facts and dims.
+4. **BI consumption:** Analyst starts Metabase via `make bi-up` and follows `docs/bi-setup-and-semantic-alignment.md` so report formulas stay aligned with semantic metrics.
 
 ## 5. SLAs and freshness (demo)
 

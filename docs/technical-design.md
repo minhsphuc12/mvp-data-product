@@ -59,6 +59,8 @@ Custom macro `generate_schema_name` maps dbt `+schema` values to **exact** Postg
 | Command | Effect |
 |---------|--------|
 | `make up` | Start Compose stack |
+| `make bi-up` | Start optional Metabase service (`--profile bi`) |
+| `make bi-down` | Stop optional Metabase service (`--profile bi`) |
 | `make seed-data` | Truncate + load sources + raw mirror |
 | `make transform` | `dbt run` |
 | `make test` | `dbt test` |
@@ -78,3 +80,8 @@ Custom macro `generate_schema_name` maps dbt `+schema` values to **exact** Postg
 - SCD2 on `dim_customer`.
 - Orchestrated schedules (cron, Prefect, Airflow).
 - Real-time ingestion or external ELT tool reading binlogs/WAL.
+
+## 10. BI implementation notes
+
+- A runnable local BI path is documented in `docs/bi-setup-and-semantic-alignment.md`.
+- SQL templates for Metabase live in `bi/sql/` and align KPI formulas with `models/marts/_mart_branch_monthly_semantic.yml`.

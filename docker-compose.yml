@@ -60,7 +60,7 @@ services:
 
   metabase:
     profiles: ["bi"]
-    image: metabase/metabase:v0.49.28
+    image: metabase/metabase:latest
     container_name: finance_demo_metabase
     ports:
       - "${METABASE_PORT:-3000}:3000"

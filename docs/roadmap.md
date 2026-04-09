@@ -2,7 +2,7 @@
 
 This document tracks **what the finance demo platform already delivers** and **planned themes** (realtime sources, dictionary/metrics for business users, data contracts and validation). Status values: **Done**, **In progress**, **Planned**.
 
-Related docs: [data-product-design-overview.md](data-product-design-overview.md), [technical-design.md](technical-design.md), [data-design-and-flow.md](data-design-and-flow.md), [glossary.md](glossary.md), [catalog.md](catalog.md), [realtime-and-cdc.md](realtime-and-cdc.md).
+Related docs: [data-product-design-overview.md](data-product-design-overview.md), [technical-design.md](technical-design.md), [data-design-and-flow.md](data-design-and-flow.md), [glossary.md](glossary.md), [catalog.md](catalog.md), [realtime-and-cdc.md](realtime-and-cdc.md), [bi-setup-and-semantic-alignment.md](bi-setup-and-semantic-alignment.md).
 
 ---
 
@@ -43,7 +43,8 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | ---- | ------ | ----- |
 | Business glossary | Done | [glossary.md](glossary.md). |
 | dbt Semantic Layer (semantic model + metrics) on branch monthly mart | Done | `models/marts/_mart_branch_monthly_semantic.yml`. |
-| Metabase (optional Compose service) | Done | `docker compose --profile bi up`; connect to `analytics_db` on the internal network. |
+| Metabase (optional Compose service) | Done | `make bi-up`; connect to `analytics_db` on the internal network. |
+| BI semantic alignment guide + SQL templates | Done | `docs/bi-setup-and-semantic-alignment.md` and `bi/sql/*`. |
 | Enterprise catalog (DataHub, OpenMetadata, dbt Cloud) | Planned | Pointers in [catalog.md](catalog.md). |
 
 ---
