@@ -70,6 +70,7 @@ source .venv/bin/activate
 
 make up          # start three Postgres containers
 make seed-data   # synthetic data → sources + raw mirror on analytics_db
+make validate-scd2-seed  # verify time-varying snapshots for SCD2 demo
 make transform   # dbt run
 make semantic-build     # build curated semantic views under schema semantic
 make semantic-validate  # validate semantic views reconcile with mart totals
@@ -108,7 +109,8 @@ make demo
 
 - **Grains:** `fct_loan_disbursement` = one row per loan; `fct_repayment` = one row per repayment; `fct_policy` = one row per policy; `fct_claim` = one row per claim; `mart_branch_monthly_performance` = `branch_id` × `month_start_date`.
 - **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (from raw `loaded_at` when present).
-- `**dim_customer.customer_key`:** equals `master_customer_id` from identity resolution (MD5-based deterministic surrogate).
+- `dim_customer` and `dim_branch` are modeled as SCD2 with `valid_from_ts`, `valid_to_ts`, `is_current`, `version_number`.
+- Facts resolve dimension keys using point-in-time joins on event timestamps.
 
 ## Identity resolution (deterministic)
 

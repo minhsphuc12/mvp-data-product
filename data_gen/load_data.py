@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Sequence
 
 import psycopg2
@@ -43,6 +43,52 @@ def _connect_from_env(prefix: str):
 
 def _utc_loaded_at() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _scd2_batch_timestamps(base_ts: datetime) -> List[datetime]:
+    return [
+        base_ts - timedelta(days=60),
+        base_ts - timedelta(days=30),
+        base_ts,
+    ]
+
+
+def _lending_scd2_snapshot(lending, batch_index: int):
+    branches = [{**row} for row in lending.branches]
+    customers = [{**row} for row in lending.customers]
+
+    for row in branches:
+        branch_id = row["branch_id"]
+        if batch_index >= 1 and branch_id % 4 == 0:
+            row["city"] = f"{row['city']} Metro"
+        if batch_index >= 2 and branch_id % 5 == 0:
+            row["branch_name"] = f"{row['branch_name']} Hub"
+
+    for row in customers:
+        customer_id = row["customer_id"]
+        if batch_index >= 1 and customer_id % 7 == 0:
+            row["phone_number"] = f"{row['phone_number'][:-2]}77"
+        if batch_index >= 1 and customer_id % 11 == 0:
+            row["primary_branch_id"] = (row["primary_branch_id"] % len(branches)) + 1
+        if batch_index >= 2 and customer_id % 13 == 0:
+            row["email"] = f"customer{customer_id}@changes.example.com"
+        if batch_index >= 2 and customer_id % 17 == 0:
+            row["full_name"] = f"{row['full_name']} Jr"
+
+    return branches, customers
+
+
+def _insurance_scd2_snapshot(insurance, batch_index: int):
+    policy_holders = [{**row} for row in insurance.policy_holders]
+    for row in policy_holders:
+        holder_id = row["policy_holder_id"]
+        if batch_index >= 1 and holder_id % 7 == 0:
+            row["phone_number"] = f"{row['phone_number'][:-2]}77"
+        if batch_index >= 2 and holder_id % 13 == 0:
+            row["email"] = f"holder{holder_id}@changes.example.com"
+        if batch_index >= 2 and holder_id % 17 == 0:
+            row["full_name"] = f"{row['full_name']} Jr"
+    return policy_holders
 
 
 def truncate_lending_source(cur) -> None:
@@ -84,6 +130,26 @@ def truncate_analytics_raw(cur) -> None:
             raw_insurance.policies,
             raw_insurance.policy_holders
         RESTART IDENTITY CASCADE;
+        """
+    )
+
+
+def ensure_analytics_raw_scd2_schema(cur) -> None:
+    cur.execute(
+        """
+        ALTER TABLE raw_lending.branches DROP CONSTRAINT IF EXISTS branches_pkey;
+        ALTER TABLE raw_lending.customers DROP CONSTRAINT IF EXISTS customers_pkey;
+        ALTER TABLE raw_insurance.policy_holders DROP CONSTRAINT IF EXISTS policy_holders_pkey;
+        ALTER TABLE raw_lending.branches DROP CONSTRAINT IF EXISTS raw_lending_branches_pkey;
+        ALTER TABLE raw_lending.customers DROP CONSTRAINT IF EXISTS raw_lending_customers_pkey;
+        ALTER TABLE raw_insurance.policy_holders DROP CONSTRAINT IF EXISTS raw_insurance_policy_holders_pkey;
+
+        ALTER TABLE raw_lending.branches
+            ADD CONSTRAINT raw_lending_branches_pkey PRIMARY KEY (branch_id, loaded_at);
+        ALTER TABLE raw_lending.customers
+            ADD CONSTRAINT raw_lending_customers_pkey PRIMARY KEY (customer_id, loaded_at);
+        ALTER TABLE raw_insurance.policy_holders
+            ADD CONSTRAINT raw_insurance_policy_holders_pkey PRIMARY KEY (policy_holder_id, loaded_at);
         """
     )
 
@@ -213,28 +279,6 @@ def mirror_lending_raw(cur, lending, loaded_at: datetime) -> None:
     execute_batch(
         cur,
         """
-        INSERT INTO raw_lending.branches (branch_id, branch_name, city, opened_at, loaded_at)
-        VALUES (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s, %(loaded_at)s);
-        """,
-        [{**r, "loaded_at": loaded_at} for r in lending.branches],
-    )
-    execute_batch(
-        cur,
-        """
-        INSERT INTO raw_lending.customers (
-            customer_id, national_id, phone_number, full_name, email,
-            primary_branch_id, created_at, loaded_at
-        )
-        VALUES (
-            %(customer_id)s, %(national_id)s, %(phone_number)s, %(full_name)s, %(email)s,
-            %(primary_branch_id)s, %(created_at)s, %(loaded_at)s
-        );
-        """,
-        [{**r, "loaded_at": loaded_at} for r in lending.customers],
-    )
-    execute_batch(
-        cur,
-        """
         INSERT INTO raw_lending.loan_applications (
             application_id, customer_id, branch_id, amount_requested, status, applied_at, loaded_at
         )
@@ -273,20 +317,34 @@ def mirror_lending_raw(cur, lending, loaded_at: datetime) -> None:
     )
 
 
-def mirror_insurance_raw(cur, insurance, loaded_at: datetime) -> None:
-    execute_batch(
-        cur,
-        """
-        INSERT INTO raw_insurance.policy_holders (
-            policy_holder_id, national_id, phone_number, full_name, email, created_at, loaded_at
+def mirror_lending_raw_scd2_batches(cur, lending, loaded_at_list: List[datetime]) -> None:
+    for batch_index, loaded_at in enumerate(loaded_at_list):
+        branches, customers = _lending_scd2_snapshot(lending, batch_index)
+        execute_batch(
+            cur,
+            """
+            INSERT INTO raw_lending.branches (branch_id, branch_name, city, opened_at, loaded_at)
+            VALUES (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s, %(loaded_at)s);
+            """,
+            [{**r, "loaded_at": loaded_at} for r in branches],
         )
-        VALUES (
-            %(policy_holder_id)s, %(national_id)s, %(phone_number)s, %(full_name)s,
-            %(email)s, %(created_at)s, %(loaded_at)s
-        );
-        """,
-        [{**r, "loaded_at": loaded_at} for r in insurance.policy_holders],
-    )
+        execute_batch(
+            cur,
+            """
+            INSERT INTO raw_lending.customers (
+                customer_id, national_id, phone_number, full_name, email,
+                primary_branch_id, created_at, loaded_at
+            )
+            VALUES (
+                %(customer_id)s, %(national_id)s, %(phone_number)s, %(full_name)s, %(email)s,
+                %(primary_branch_id)s, %(created_at)s, %(loaded_at)s
+            );
+            """,
+            [{**r, "loaded_at": loaded_at} for r in customers],
+        )
+
+
+def mirror_insurance_raw(cur, insurance, loaded_at: datetime) -> None:
     execute_batch(
         cur,
         """
@@ -317,6 +375,24 @@ def mirror_insurance_raw(cur, insurance, loaded_at: datetime) -> None:
     )
 
 
+def mirror_insurance_raw_scd2_batches(cur, insurance, loaded_at_list: List[datetime]) -> None:
+    for batch_index, loaded_at in enumerate(loaded_at_list):
+        policy_holders = _insurance_scd2_snapshot(insurance, batch_index)
+        execute_batch(
+            cur,
+            """
+            INSERT INTO raw_insurance.policy_holders (
+                policy_holder_id, national_id, phone_number, full_name, email, created_at, loaded_at
+            )
+            VALUES (
+                %(policy_holder_id)s, %(national_id)s, %(phone_number)s, %(full_name)s,
+                %(email)s, %(created_at)s, %(loaded_at)s
+            );
+            """,
+            [{**r, "loaded_at": loaded_at} for r in policy_holders],
+        )
+
+
 def main() -> int:
     try:
         from dotenv import load_dotenv
@@ -329,6 +405,7 @@ def main() -> int:
     lending, exact_keys, phone_keys = build_lending_dataset()
     insurance = build_insurance_dataset(exact_keys, phone_keys)
     loaded_at = _utc_loaded_at()
+    scd2_batches = _scd2_batch_timestamps(loaded_at)
 
     print("Connecting to databases...")
     conn_lending = _connect_from_env("SOURCE_DB_1")
@@ -355,8 +432,11 @@ def main() -> int:
                 insert_claims(c2, insurance.claims)
 
                 print("Truncating analytics raw layers...")
+                ensure_analytics_raw_scd2_schema(ca)
                 truncate_analytics_raw(ca)
                 print("Mirroring into analytics_db raw_lending / raw_insurance...")
+                mirror_lending_raw_scd2_batches(ca, lending, scd2_batches)
+                mirror_insurance_raw_scd2_batches(ca, insurance, scd2_batches)
                 mirror_lending_raw(ca, lending, loaded_at)
                 mirror_insurance_raw(ca, insurance, loaded_at)
 

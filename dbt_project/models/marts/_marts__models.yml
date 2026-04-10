@@ -13,20 +13,52 @@ models:
         tests: [unique, not_null]
 
   - name: dim_branch
-    description: "Branch conformed dimension (lending is the system of record)."
+    description: "Branch conformed SCD2 dimension (lending is the system of record)."
+    tests:
+      - no_overlapping_scd2_windows:
+          business_key: branch_id
+          valid_from: valid_from_ts
+          valid_to: valid_to_ts
+      - unique_combination_of_columns:
+          columns: [branch_id, valid_from_ts]
     columns:
       - name: branch_key
         tests: [unique, not_null]
       - name: branch_id
-        tests: [unique, not_null]
+        tests: [not_null]
+      - name: valid_from_ts
+        tests: [not_null]
+      - name: is_current
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: version_number
+        tests: [not_null]
 
   - name: dim_customer
-    description: "Customer dimension keyed by resolved master_customer_id."
+    description: "Customer SCD2 dimension keyed by resolved master_customer_id."
+    tests:
+      - no_overlapping_scd2_windows:
+          business_key: master_customer_id
+          valid_from: valid_from_ts
+          valid_to: valid_to_ts
+      - unique_combination_of_columns:
+          columns: [master_customer_id, valid_from_ts]
     columns:
       - name: customer_key
         tests: [unique, not_null]
       - name: master_customer_id
-        tests: [unique, not_null]
+        tests: [not_null]
+      - name: valid_from_ts
+        tests: [not_null]
+      - name: is_current
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: version_number
+        tests: [not_null]
 
   - name: fct_loan_disbursement
     description: "One row per loan disbursement (loan_id grain)."

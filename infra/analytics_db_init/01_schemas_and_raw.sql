@@ -4,22 +4,24 @@ CREATE SCHEMA IF NOT EXISTS raw_insurance;
 
 -- Lending raw tables (same shape as source_db_1)
 CREATE TABLE IF NOT EXISTS raw_lending.branches (
-    branch_id       INTEGER PRIMARY KEY,
+    branch_id       INTEGER NOT NULL,
     branch_name     VARCHAR(120) NOT NULL,
     city            VARCHAR(100) NOT NULL,
     opened_at       TIMESTAMPTZ NOT NULL,
-    loaded_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    loaded_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (branch_id, loaded_at)
 );
 
 CREATE TABLE IF NOT EXISTS raw_lending.customers (
-    customer_id         INTEGER PRIMARY KEY,
+    customer_id         INTEGER NOT NULL,
     national_id         VARCHAR(32),
     phone_number        VARCHAR(32) NOT NULL,
     full_name           VARCHAR(200) NOT NULL,
     email               VARCHAR(200),
     primary_branch_id   INTEGER NOT NULL,
     created_at          TIMESTAMPTZ NOT NULL,
-    loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (customer_id, loaded_at)
 );
 
 CREATE TABLE IF NOT EXISTS raw_lending.loan_applications (
@@ -55,13 +57,14 @@ CREATE TABLE IF NOT EXISTS raw_lending.repayments (
 
 -- Insurance raw tables (same shape as source_db_2)
 CREATE TABLE IF NOT EXISTS raw_insurance.policy_holders (
-    policy_holder_id    INTEGER PRIMARY KEY,
+    policy_holder_id    INTEGER NOT NULL,
     national_id         VARCHAR(32),
     phone_number        VARCHAR(32) NOT NULL,
     full_name           VARCHAR(200) NOT NULL,
     email               VARCHAR(200),
     created_at          TIMESTAMPTZ NOT NULL,
-    loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (policy_holder_id, loaded_at)
 );
 
 CREATE TABLE IF NOT EXISTS raw_insurance.policies (

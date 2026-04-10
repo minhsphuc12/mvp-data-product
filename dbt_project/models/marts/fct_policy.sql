@@ -16,10 +16,14 @@ select
     p.source_system,
     current_timestamp as loaded_at
 from {{ ref('stg_insurance_policies') }} p
-left join {{ ref('int_customer_360') }} c360
-    on p.policy_holder_id = c360.insurance_policy_holder_id
-left join {{ ref('dim_customer') }} dc
-    on dc.customer_key = c360.master_customer_id
+left join lateral (
+    select d.customer_key
+    from {{ ref('dim_customer') }} d
+    where d.insurance_policy_holder_id = p.policy_holder_id
+      and d.valid_from_ts <= p.coverage_start_date::timestamp
+    order by d.valid_from_ts desc
+    limit 1
+) dc on true
 inner join {{ ref('dim_date') }} ds
     on ds.date_day = p.coverage_start_date
 inner join {{ ref('dim_date') }} de

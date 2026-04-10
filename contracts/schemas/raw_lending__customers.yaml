@@ -7,7 +7,6 @@ columns:
   customer_id:
     physical_type: integer
     nullable: false
-    unique: true
   national_id:
     physical_type: varchar
     nullable: true

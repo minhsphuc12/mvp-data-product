@@ -74,7 +74,7 @@ Synthetic data only; no real PII. National IDs and phones are random numeric pat
 ## 8. Known limitations (product-facing)
 
 - Identity resolution is **rule-based**, not probabilistic or curated.
-- **No SCD2** on customer or branch.
+- SCD2 history quality depends on synthetic batch generation (`make seed-data`) and `loaded_at` continuity.
 - **Insurance-to-branch** mapping depends on resolution to lending; unmatched insurance-only customers do not appear in branch insurance KPIs.
 - Volumes are small; performance patterns are not representative of production.
 
@@ -85,7 +85,7 @@ Synthetic data only; no real PII. National IDs and phones are random numeric pat
 | Theme       | Idea                                                                | Status (see roadmap)        |
 | ----------- | ------------------------------------------------------------------- | --------------------------- |
 | Consumption | Metabase (Compose profile `bi`) pointing at `analytics_db`          | Implemented (optional)      |
-| Modeling    | SCD2 `dim_customer`, role-playing dates on facts                    | Planned                     |
+| Modeling    | SCD2 `dim_customer`/`dim_branch`, point-in-time fact joins          | Implemented                 |
 | Metrics     | dbt Semantic Layer on `mart_branch_monthly_performance`             | Implemented                 |
 | Dictionary  | Business glossary (`docs/glossary.md`)                              | Implemented                 |
 | Operations  | CI dbt test, explicit raw contracts, Prefect example flow          | Partially implemented       |

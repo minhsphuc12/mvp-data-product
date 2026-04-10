@@ -30,13 +30,7 @@ flowchart LR
   stg_lending_loan_applications["stg_lending_loan_applications"]
   stg_lending_loans["stg_lending_loans"]
   stg_lending_repayments["stg_lending_repayments"]
-  raw_lending_loan_applications --> stg_lending_loan_applications
-  raw_insurance_policy_holders --> stg_insurance_policy_holders
-  raw_lending_customers --> stg_lending_customers
-  raw_insurance_claims --> stg_insurance_claims
-  raw_insurance_policies --> stg_insurance_policies
-  raw_lending_branches --> stg_lending_branches
-  raw_lending_repayments --> stg_lending_repayments
+  int_customer_360 --> dim_customer
   fct_loan_disbursement --> mart_branch_monthly_performance
   stg_lending_repayments --> mart_branch_monthly_performance
   stg_lending_loans --> mart_branch_monthly_performance
@@ -44,36 +38,38 @@ flowchart LR
   int_customer_360 --> mart_branch_monthly_performance
   dim_date --> mart_branch_monthly_performance
   stg_insurance_claims --> mart_branch_monthly_performance
-  stg_lending_branches --> dim_branch
-  int_customer_360 --> dim_customer
-  stg_insurance_policies --> int_policy_claim_summary
-  stg_insurance_claims --> int_policy_claim_summary
   int_customer_identity_resolution --> int_customer_360
   stg_lending_customers --> int_customer_360
   stg_insurance_policy_holders --> int_customer_360
-  stg_lending_repayments --> int_daily_loan_cashflow
-  stg_lending_loans --> int_daily_loan_cashflow
   stg_lending_customers --> int_customer_identity_resolution
   stg_insurance_policy_holders --> int_customer_identity_resolution
+  raw_insurance_policy_holders --> stg_insurance_policy_holders
+  stg_insurance_policies --> int_policy_claim_summary
+  stg_insurance_claims --> int_policy_claim_summary
+  raw_insurance_policies --> stg_insurance_policies
+  raw_insurance_claims --> stg_insurance_claims
+  stg_lending_branches --> dim_branch
+  raw_lending_branches --> stg_lending_branches
+  raw_lending_customers --> stg_lending_customers
+  raw_lending_loan_applications --> stg_lending_loan_applications
+  stg_lending_repayments --> int_daily_loan_cashflow
+  stg_lending_loans --> int_daily_loan_cashflow
+  raw_lending_loans --> stg_lending_loans
+  raw_lending_repayments --> stg_lending_repayments
+  stg_insurance_policies --> fct_policy
+  dim_customer --> fct_policy
+  dim_date --> fct_policy
+  stg_lending_loans --> fct_loan_disbursement
+  dim_date --> fct_loan_disbursement
+  dim_branch --> fct_loan_disbursement
+  dim_customer --> fct_loan_disbursement
   stg_lending_repayments --> fct_repayment
   stg_lending_loans --> fct_repayment
-  int_customer_360 --> fct_repayment
   dim_date --> fct_repayment
   dim_branch --> fct_repayment
   dim_customer --> fct_repayment
   stg_insurance_claims --> fct_claim
   stg_insurance_policies --> fct_claim
-  int_customer_360 --> fct_claim
   dim_customer --> fct_claim
   dim_date --> fct_claim
-  stg_insurance_policies --> fct_policy
-  int_customer_360 --> fct_policy
-  dim_customer --> fct_policy
-  dim_date --> fct_policy
-  stg_lending_loans --> fct_loan_disbursement
-  int_customer_360 --> fct_loan_disbursement
-  dim_date --> fct_loan_disbursement
-  dim_branch --> fct_loan_disbursement
-  dim_customer --> fct_loan_disbursement
-  raw_lending_loans --> stg_lending_loans
 ```

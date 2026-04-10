@@ -6,18 +6,24 @@ sources:
     schema: raw_lending
     tables:
       - name: branches
+        tests:
+          - unique_combination_of_columns:
+              columns: [branch_id, loaded_at]
         columns:
           - name: branch_id
-            tests: [unique, not_null]
+            tests: [not_null]
           - name: branch_name
             tests: [not_null]
           - name: city
             tests: [not_null]
 
       - name: customers
+        tests:
+          - unique_combination_of_columns:
+              columns: [customer_id, loaded_at]
         columns:
           - name: customer_id
-            tests: [unique, not_null]
+            tests: [not_null]
           - name: phone_number
             tests: [not_null]
           - name: full_name
@@ -97,9 +103,12 @@ sources:
     schema: raw_insurance
     tables:
       - name: policy_holders
+        tests:
+          - unique_combination_of_columns:
+              columns: [policy_holder_id, loaded_at]
         columns:
           - name: policy_holder_id
-            tests: [unique, not_null]
+            tests: [not_null]
           - name: phone_number
             tests: [not_null]
           - name: full_name

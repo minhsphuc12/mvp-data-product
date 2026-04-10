@@ -18,18 +18,20 @@ nid_ranked as (
     select
         l.lending_customer_id,
         i.policy_holder_id,
+        l.loaded_at,
         l.national_id,
         row_number() over (
-            partition by l.national_id
+            partition by l.loaded_at, l.national_id
             order by l.lending_customer_id, i.policy_holder_id
         ) as rn_l,
         row_number() over (
-            partition by i.national_id
+            partition by i.loaded_at, i.national_id
             order by i.policy_holder_id, l.lending_customer_id
         ) as rn_i
     from lending l
     inner join insurance i
-        on l.national_id is not null
+        on l.loaded_at = i.loaded_at
+        and l.national_id is not null
         and i.national_id is not null
         and l.national_id = i.national_id
 ),
@@ -38,6 +40,7 @@ nid_matches as (
     select
         lending_customer_id,
         policy_holder_id,
+        loaded_at,
         national_id,
         'national_id' as match_method
     from nid_ranked
@@ -52,6 +55,7 @@ rem_lending as (
         select 1
         from nid_matches n
         where n.lending_customer_id = l.lending_customer_id
+          and n.loaded_at = l.loaded_at
     )
 ),
 
@@ -62,6 +66,7 @@ rem_insurance as (
         select 1
         from nid_matches n
         where n.policy_holder_id = i.policy_holder_id
+          and n.loaded_at = i.loaded_at
     )
 ),
 
@@ -69,17 +74,19 @@ phone_ranked as (
     select
         l.lending_customer_id,
         i.policy_holder_id,
+        l.loaded_at,
         row_number() over (
-            partition by l.lending_customer_id
+            partition by l.loaded_at, l.lending_customer_id
             order by i.policy_holder_id
         ) as rn_l,
         row_number() over (
-            partition by i.policy_holder_id
+            partition by i.loaded_at, i.policy_holder_id
             order by l.lending_customer_id
         ) as rn_i
     from rem_lending l
     inner join rem_insurance i
-        on l.phone_number = i.phone_number
+        on l.loaded_at = i.loaded_at
+        and l.phone_number = i.phone_number
         and l.normalized_full_name = i.normalized_full_name
 ),
 
@@ -87,6 +94,7 @@ phone_matches as (
     select
         lending_customer_id,
         policy_holder_id,
+        loaded_at,
         cast(null as varchar) as national_id,
         'phone_and_name' as match_method
     from phone_ranked
@@ -98,6 +106,7 @@ pairs as (
     select
         lending_customer_id,
         policy_holder_id,
+        loaded_at,
         national_id,
         match_method
     from nid_matches
@@ -105,6 +114,7 @@ pairs as (
     select
         lending_customer_id,
         policy_holder_id,
+        loaded_at,
         national_id,
         match_method
     from phone_matches
@@ -114,6 +124,7 @@ unmatched_lending as (
     select
         l.lending_customer_id,
         cast(null as integer) as policy_holder_id,
+        l.loaded_at,
         l.national_id,
         'unmatched_lending' as match_method
     from lending l
@@ -121,6 +132,7 @@ unmatched_lending as (
         select 1
         from pairs p
         where p.lending_customer_id = l.lending_customer_id
+          and p.loaded_at = l.loaded_at
     )
 ),
 
@@ -128,6 +140,7 @@ unmatched_insurance as (
     select
         cast(null as integer) as lending_customer_id,
         i.policy_holder_id,
+        i.loaded_at,
         i.national_id,
         'unmatched_insurance' as match_method
     from insurance i
@@ -135,6 +148,7 @@ unmatched_insurance as (
         select 1
         from pairs p
         where p.policy_holder_id = i.policy_holder_id
+          and p.loaded_at = i.loaded_at
     )
 ),
 
@@ -151,14 +165,17 @@ enriched as (
         u.lending_customer_id,
         u.policy_holder_id,
         u.match_method,
+        u.loaded_at,
         coalesce(l.national_id, i.national_id) as national_id,
         coalesce(l.phone_number, i.phone_number) as phone_number,
         coalesce(l.normalized_full_name, i.normalized_full_name) as normalized_full_name
     from unioned u
     left join lending l
         on u.lending_customer_id = l.lending_customer_id
+        and u.loaded_at = l.loaded_at
     left join insurance i
         on u.policy_holder_id = i.policy_holder_id
+        and u.loaded_at = i.loaded_at
 )
 
 select
@@ -173,6 +190,7 @@ select
     lending_customer_id,
     policy_holder_id as insurance_policy_holder_id,
     match_method,
+    loaded_at,
     national_id,
     phone_number,
     normalized_full_name
