@@ -2,6 +2,28 @@
 
 Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with raw mirror layers, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. No CDC, no orchestrator, no cloud.
 
+## Changelog
+
+### 2026-04-10
+- Implemented SCD2 dimensions for customer and branch with point-in-time fact lookups to keep historical analysis consistent.
+- Added deterministic multi-batch synthetic snapshots and validation so the demo shows real attribute changes over time.
+- Strengthened BI consumption with semantic serving artifacts and business access controls.
+
+### 2026-04-09
+- Delivered runnable BI setup and semantic alignment flow so report numbers reconcile with modeled metrics.
+- Expanded branch-month semantic metrics and polished supporting BI documentation/assets.
+
+### 2026-04-08
+- Added semantic model foundations, raw schema contracts, and CI-oriented data quality checks.
+- Improved platform operations with CDC-ready configuration and optional BI/orchestration capabilities.
+- Extended documentation and lineage coverage, including raw-source visibility.
+
+### 2026-04-07
+- Improved repository hygiene and refreshed local setup/project documentation.
+
+### 2026-04-04
+- Initialized the MVP data product with synthetic data generation, dbt transformations, and baseline documentation.
+
 ## Documentation
 
 
