@@ -1,0 +1,84 @@
+version: 1
+source:
+  schema: marts
+  table: mart_branch_monthly_performance
+
+artifacts:
+  - name: branch_monthly_kpi_base
+    type: view
+    description: Branch x month base with semantic-consistent KPI columns.
+    dimensions:
+      - month_start_date
+      - branch_id
+    metrics:
+      - total_loan_disbursement_amount
+      - total_repayment_amount
+      - total_active_policies
+      - total_number_of_loans
+      - total_claim_amount
+      - total_cross_sell_customers
+      - repayment_coverage_ratio
+      - claim_to_disbursement_ratio
+      - avg_disbursement_per_loan
+      - cross_sell_per_loan_ratio
+    sql: |
+      select
+          month_start_date,
+          branch_id,
+          loan_disbursement_amount as total_loan_disbursement_amount,
+          repayment_amount as total_repayment_amount,
+          active_policy_count as total_active_policies,
+          number_of_loans as total_number_of_loans,
+          claim_amount as total_claim_amount,
+          cross_sell_customer_count as total_cross_sell_customers,
+          repayment_amount / nullif(loan_disbursement_amount, 0) as repayment_coverage_ratio,
+          claim_amount / nullif(loan_disbursement_amount, 0) as claim_to_disbursement_ratio,
+          loan_disbursement_amount / nullif(number_of_loans, 0) as avg_disbursement_per_loan,
+          cross_sell_customer_count / nullif(number_of_loans, 0)::numeric as cross_sell_per_loan_ratio
+      from {source_relation}
+
+  - name: executive_monthly_trend
+    type: view
+    description: Monthly KPI trend aggregated across all branches.
+    dimensions:
+      - month_start_date
+    metrics:
+      - total_loan_disbursement_amount
+      - total_repayment_amount
+      - total_claim_amount
+      - total_cross_sell_customers
+      - repayment_coverage_ratio
+      - claim_to_disbursement_ratio
+      - avg_disbursement_per_loan
+    sql: |
+      select
+          month_start_date,
+          sum(loan_disbursement_amount) as total_loan_disbursement_amount,
+          sum(repayment_amount) as total_repayment_amount,
+          sum(claim_amount) as total_claim_amount,
+          sum(cross_sell_customer_count) as total_cross_sell_customers,
+          sum(repayment_amount) / nullif(sum(loan_disbursement_amount), 0) as repayment_coverage_ratio,
+          sum(claim_amount) / nullif(sum(loan_disbursement_amount), 0) as claim_to_disbursement_ratio,
+          sum(loan_disbursement_amount) / nullif(sum(number_of_loans), 0) as avg_disbursement_per_loan
+      from {source_relation}
+      group by month_start_date
+
+  - name: branch_risk_watchlist
+    type: view
+    description: Branch-month slice ranked by claim-to-disbursement ratio.
+    dimensions:
+      - month_start_date
+      - branch_id
+    metrics:
+      - total_claim_amount
+      - total_loan_disbursement_amount
+      - claim_to_disbursement_ratio
+    sql: |
+      select
+          month_start_date,
+          branch_id,
+          claim_amount as total_claim_amount,
+          loan_disbursement_amount as total_loan_disbursement_amount,
+          claim_amount / nullif(loan_disbursement_amount, 0) as claim_to_disbursement_ratio
+      from {source_relation}
+      where loan_disbursement_amount > 0

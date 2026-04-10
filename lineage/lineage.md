@@ -30,7 +30,6 @@ flowchart LR
   stg_lending_loan_applications["stg_lending_loan_applications"]
   stg_lending_loans["stg_lending_loans"]
   stg_lending_repayments["stg_lending_repayments"]
-  raw_lending_loans --> stg_lending_loans
   raw_lending_loan_applications --> stg_lending_loan_applications
   raw_insurance_policy_holders --> stg_insurance_policy_holders
   raw_lending_customers --> stg_lending_customers
@@ -67,13 +66,14 @@ flowchart LR
   int_customer_360 --> fct_claim
   dim_customer --> fct_claim
   dim_date --> fct_claim
+  stg_insurance_policies --> fct_policy
+  int_customer_360 --> fct_policy
+  dim_customer --> fct_policy
+  dim_date --> fct_policy
   stg_lending_loans --> fct_loan_disbursement
   int_customer_360 --> fct_loan_disbursement
   dim_date --> fct_loan_disbursement
   dim_branch --> fct_loan_disbursement
   dim_customer --> fct_loan_disbursement
-  stg_insurance_policies --> fct_policy
-  int_customer_360 --> fct_policy
-  dim_customer --> fct_policy
-  dim_date --> fct_policy
+  raw_lending_loans --> stg_lending_loans
 ```

@@ -90,6 +90,15 @@ Important alignment rule:
 -- Execute file: bi/sql/metabase_business_permissions.sql
 ```
 
+Create/update a real login user and attach it to `bi_business_readonly`:
+
+```bash
+psql "$ANALYTICS_DATABASE_URL" \
+  -v metabase_bi_user='metabase_business' \
+  -v metabase_bi_password='change_me_strong_password' \
+  -f bi/sql/bootstrap_metabase_business_user.sql
+```
+
 2. In Metabase:
    - Create groups: `Business`, `Analyst`, `Admin`.
    - Disable Native query editor for `Business`.
