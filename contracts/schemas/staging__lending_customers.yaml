@@ -1,0 +1,30 @@
+contract_version: "1.0.0"
+schema: staging
+table: lending_customers
+description: Lending customers mirrored into analytics.
+owner: finance_demo
+columns:
+  customer_id:
+    physical_type: integer
+    nullable: false
+  national_id:
+    physical_type: varchar
+    nullable: true
+  phone_number:
+    physical_type: varchar
+    nullable: false
+  full_name:
+    physical_type: varchar
+    nullable: false
+  email:
+    physical_type: varchar
+    nullable: true
+  primary_branch_id:
+    physical_type: integer
+    nullable: false
+  created_at:
+    physical_type: timestamptz
+    nullable: false
+  loaded_at:
+    physical_type: timestamptz
+    nullable: false

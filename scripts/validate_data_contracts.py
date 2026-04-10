@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate raw-layer YAML contracts against dbt sources.yml:
+Validate staging-landing YAML contracts against dbt sources.yml:
   - Every dbt-declared source table has a matching contract file.
   - Every column referenced in sources.yml exists in the contract.
   - No orphan contract files without a matching dbt source table.
@@ -100,7 +100,7 @@ def main() -> None:
         sys.exit(1)
 
     print(
-        f"OK: {len(contracts)} raw table contracts aligned with dbt sources.yml",
+        f"OK: {len(contracts)} staging landing table contracts aligned with dbt sources.yml",
         file=sys.stderr,
     )
 

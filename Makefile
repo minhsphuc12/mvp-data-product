@@ -40,6 +40,7 @@ test: check-dbt-python
 
 validate-contracts:
 	$(PY) "$(ROOT)scripts/validate_data_contracts.py"
+	$(PY) "$(ROOT)scripts/validate_source_contracts.py"
 
 flow-refresh:
 	$(PY) "$(ROOT)orchestration/refresh_flow.py"

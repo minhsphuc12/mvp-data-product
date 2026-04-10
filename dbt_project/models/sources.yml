@@ -1,11 +1,11 @@
 version: 2
 
 sources:
-  - name: raw_lending
-    description: "Mirrored lending operational tables loaded by Python into analytics_db."
-    schema: raw_lending
+  - name: staging_lending
+    description: "Lending tables pulled from production into analytics_db staging landing."
+    schema: staging
     tables:
-      - name: branches
+      - name: lending_branches
         tests:
           - unique_combination_of_columns:
               columns: [branch_id, loaded_at]
@@ -17,7 +17,7 @@ sources:
           - name: city
             tests: [not_null]
 
-      - name: customers
+      - name: lending_customers
         tests:
           - unique_combination_of_columns:
               columns: [customer_id, loaded_at]
@@ -32,10 +32,10 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_lending', 'branches')
+                  to: source('staging_lending', 'lending_branches')
                   field: branch_id
 
-      - name: loan_applications
+      - name: lending_loan_applications
         columns:
           - name: application_id
             tests: [unique, not_null]
@@ -48,15 +48,15 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_lending', 'customers')
+                  to: source('staging_lending', 'lending_customers')
                   field: customer_id
           - name: branch_id
             tests:
               - relationships:
-                  to: source('raw_lending', 'branches')
+                  to: source('staging_lending', 'lending_branches')
                   field: branch_id
 
-      - name: loans
+      - name: lending_loans
         columns:
           - name: loan_id
             tests: [unique, not_null]
@@ -69,21 +69,21 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_lending', 'customers')
+                  to: source('staging_lending', 'lending_customers')
                   field: customer_id
           - name: branch_id
             tests:
               - not_null
               - relationships:
-                  to: source('raw_lending', 'branches')
+                  to: source('staging_lending', 'lending_branches')
                   field: branch_id
           - name: application_id
             tests:
               - relationships:
-                  to: source('raw_lending', 'loan_applications')
+                  to: source('staging_lending', 'lending_loan_applications')
                   field: application_id
 
-      - name: repayments
+      - name: lending_repayments
         columns:
           - name: repayment_id
             tests: [unique, not_null]
@@ -95,14 +95,14 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_lending', 'loans')
+                  to: source('staging_lending', 'lending_loans')
                   field: loan_id
 
-  - name: raw_insurance
-    description: "Mirrored insurance operational tables loaded by Python into analytics_db."
-    schema: raw_insurance
+  - name: staging_insurance
+    description: "Insurance tables pulled from production into analytics_db staging landing."
+    schema: staging
     tables:
-      - name: policy_holders
+      - name: insurance_policy_holders
         tests:
           - unique_combination_of_columns:
               columns: [policy_holder_id, loaded_at]
@@ -114,7 +114,7 @@ sources:
           - name: full_name
             tests: [not_null]
 
-      - name: policies
+      - name: insurance_policies
         columns:
           - name: policy_id
             tests: [unique, not_null]
@@ -128,10 +128,10 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_insurance', 'policy_holders')
+                  to: source('staging_insurance', 'insurance_policy_holders')
                   field: policy_holder_id
 
-      - name: claims
+      - name: insurance_claims
         columns:
           - name: claim_id
             tests: [unique, not_null]
@@ -143,5 +143,5 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('raw_insurance', 'policies')
+                  to: source('staging_insurance', 'insurance_policies')
                   field: policy_id

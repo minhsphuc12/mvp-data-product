@@ -1,7 +1,8 @@
 contract_version: "1.0.0"
-schema: raw_lending
+system: source_db_1
+schema: public
 table: repayments
-description: Loan repayments mirrored into analytics.
+description: Lending operational repayments table in source_db_1.
 owner: finance_demo
 columns:
   repayment_id:
@@ -21,6 +22,3 @@ columns:
     physical_type: varchar
     nullable: false
     enum: [completed, failed]
-  loaded_at:
-    physical_type: timestamptz
-    nullable: false

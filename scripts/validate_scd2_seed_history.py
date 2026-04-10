@@ -48,7 +48,7 @@ def main() -> int:
             cur.execute(
                 """
                 select count(distinct loaded_at) as batch_count
-                from raw_lending.customers
+                from staging.lending_customers
                 """
             )
             customer_batch_count = cur.fetchone()[0]
@@ -56,7 +56,7 @@ def main() -> int:
             cur.execute(
                 """
                 select count(distinct loaded_at) as batch_count
-                from raw_lending.branches
+                from staging.lending_branches
                 """
             )
             branch_batch_count = cur.fetchone()[0]
@@ -65,12 +65,12 @@ def main() -> int:
                 """
                 with c as (
                     select customer_id, count(*) as version_count
-                    from raw_lending.customers
+                    from staging.lending_customers
                     group by customer_id
                 ),
                 b as (
                     select branch_id, count(*) as version_count
-                    from raw_lending.branches
+                    from staging.lending_branches
                     group by branch_id
                 )
                 select
@@ -80,10 +80,10 @@ def main() -> int:
             )
             customer_max_versions, branch_max_versions = cur.fetchone()
 
-        print(f"raw_lending.customers distinct loaded_at: {customer_batch_count}")
-        print(f"raw_lending.branches distinct loaded_at: {branch_batch_count}")
-        print(f"raw_lending.customers max versions per customer_id: {customer_max_versions}")
-        print(f"raw_lending.branches max versions per branch_id: {branch_max_versions}")
+        print(f"staging.lending_customers distinct loaded_at: {customer_batch_count}")
+        print(f"staging.lending_branches distinct loaded_at: {branch_batch_count}")
+        print(f"staging.lending_customers max versions per customer_id: {customer_max_versions}")
+        print(f"staging.lending_branches max versions per branch_id: {branch_max_versions}")
 
         if customer_batch_count < 3 or branch_batch_count < 3:
             print("ERROR: expected at least 3 time batches in raw snapshots.", file=sys.stderr)

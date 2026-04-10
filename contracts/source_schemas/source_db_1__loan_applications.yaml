@@ -1,7 +1,8 @@
 contract_version: "1.0.0"
-schema: raw_lending
+system: source_db_1
+schema: public
 table: loan_applications
-description: Loan applications mirrored into analytics.
+description: Lending operational loan applications table in source_db_1.
 owner: finance_demo
 columns:
   application_id:
@@ -22,8 +23,5 @@ columns:
     nullable: false
     enum: [pending, approved, rejected]
   applied_at:
-    physical_type: timestamptz
-    nullable: false
-  loaded_at:
     physical_type: timestamptz
     nullable: false

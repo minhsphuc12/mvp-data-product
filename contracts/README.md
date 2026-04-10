@@ -1,6 +1,10 @@
-# Data contracts (raw layer)
+# Data contracts
 
-YAML files under `schemas/` describe **expected physical shape** of mirrored raw tables: names, logical types, nullability, and enums where applicable. They complement dbt `sources.yml` tests and support CI validation via `make validate-contracts`.
+YAML files define expected physical shapes for both source and analytics landing layers:
+- `contracts/schemas/`: staging landing tables in `analytics_db.staging` (used by dbt `sources.yml`).
+- `contracts/source_schemas/`: operational source tables in `source_db_1` and `source_db_2`.
+
+They complement dbt tests and support CI validation via `make validate-contracts`.
 
 ## Versioning
 
@@ -9,8 +13,11 @@ YAML files under `schemas/` describe **expected physical shape** of mirrored raw
 
 ## Layout
 
-- One file per table: `{schema}__{table}.yaml` (e.g. `raw_lending__loans.yaml`).
+- One file per table: `{schema}__{table}.yaml` (e.g. `staging__lending_loans.yaml`).
 - Keep in sync with [infra/analytics_db_init/01_schemas_and_raw.sql](../infra/analytics_db_init/01_schemas_and_raw.sql) and [dbt_project/models/sources.yml](../dbt_project/models/sources.yml).
+- Source contracts use `{system}__{table}.yaml` (e.g. `source_db_1__loans.yaml`) and stay in sync with:
+  - [infra/source_db_1_init/01_schema.sql](../infra/source_db_1_init/01_schema.sql)
+  - [infra/source_db_2_init/01_schema.sql](../infra/source_db_2_init/01_schema.sql)
 
 ## Optional: Soda / Great Expectations
 

@@ -1,5 +1,5 @@
 """
-Truncate operational sources, load synthetic data, mirror into analytics raw schemas.
+Truncate operational sources, load synthetic data, then pull directly into analytics staging.
 """
 from __future__ import annotations
 
@@ -117,39 +117,112 @@ def truncate_insurance_source(cur) -> None:
     )
 
 
-def truncate_analytics_raw(cur) -> None:
+def truncate_analytics_staging(cur) -> None:
     cur.execute(
         """
         TRUNCATE TABLE
-            raw_lending.repayments,
-            raw_lending.loans,
-            raw_lending.loan_applications,
-            raw_lending.customers,
-            raw_lending.branches,
-            raw_insurance.claims,
-            raw_insurance.policies,
-            raw_insurance.policy_holders
+            staging.lending_repayments,
+            staging.lending_loans,
+            staging.lending_loan_applications,
+            staging.lending_customers,
+            staging.lending_branches,
+            staging.insurance_claims,
+            staging.insurance_policies,
+            staging.insurance_policy_holders
         RESTART IDENTITY CASCADE;
         """
     )
 
 
-def ensure_analytics_raw_scd2_schema(cur) -> None:
+def ensure_analytics_staging_schema(cur) -> None:
     cur.execute(
         """
-        ALTER TABLE raw_lending.branches DROP CONSTRAINT IF EXISTS branches_pkey;
-        ALTER TABLE raw_lending.customers DROP CONSTRAINT IF EXISTS customers_pkey;
-        ALTER TABLE raw_insurance.policy_holders DROP CONSTRAINT IF EXISTS policy_holders_pkey;
-        ALTER TABLE raw_lending.branches DROP CONSTRAINT IF EXISTS raw_lending_branches_pkey;
-        ALTER TABLE raw_lending.customers DROP CONSTRAINT IF EXISTS raw_lending_customers_pkey;
-        ALTER TABLE raw_insurance.policy_holders DROP CONSTRAINT IF EXISTS raw_insurance_policy_holders_pkey;
+        create schema if not exists staging;
 
-        ALTER TABLE raw_lending.branches
-            ADD CONSTRAINT raw_lending_branches_pkey PRIMARY KEY (branch_id, loaded_at);
-        ALTER TABLE raw_lending.customers
-            ADD CONSTRAINT raw_lending_customers_pkey PRIMARY KEY (customer_id, loaded_at);
-        ALTER TABLE raw_insurance.policy_holders
-            ADD CONSTRAINT raw_insurance_policy_holders_pkey PRIMARY KEY (policy_holder_id, loaded_at);
+        create table if not exists staging.lending_branches (
+            branch_id integer not null,
+            branch_name varchar(120) not null,
+            city varchar(100) not null,
+            opened_at timestamptz not null,
+            loaded_at timestamptz not null default now(),
+            primary key (branch_id, loaded_at)
+        );
+
+        create table if not exists staging.lending_customers (
+            customer_id integer not null,
+            national_id varchar(32),
+            phone_number varchar(32) not null,
+            full_name varchar(200) not null,
+            email varchar(200),
+            primary_branch_id integer not null,
+            created_at timestamptz not null,
+            loaded_at timestamptz not null default now(),
+            primary key (customer_id, loaded_at)
+        );
+
+        create table if not exists staging.lending_loan_applications (
+            application_id integer primary key,
+            customer_id integer not null,
+            branch_id integer not null,
+            amount_requested numeric(14, 2) not null,
+            status varchar(32) not null,
+            applied_at timestamptz not null,
+            loaded_at timestamptz not null default now()
+        );
+
+        create table if not exists staging.lending_loans (
+            loan_id integer primary key,
+            application_id integer,
+            customer_id integer not null,
+            branch_id integer not null,
+            principal_amount numeric(14, 2) not null,
+            status varchar(32) not null,
+            disbursement_date date not null,
+            created_at timestamptz not null,
+            loaded_at timestamptz not null default now()
+        );
+
+        create table if not exists staging.lending_repayments (
+            repayment_id integer primary key,
+            loan_id integer not null,
+            amount numeric(14, 2) not null,
+            paid_at timestamptz not null,
+            status varchar(32) not null,
+            loaded_at timestamptz not null default now()
+        );
+
+        create table if not exists staging.insurance_policy_holders (
+            policy_holder_id integer not null,
+            national_id varchar(32),
+            phone_number varchar(32) not null,
+            full_name varchar(200) not null,
+            email varchar(200),
+            created_at timestamptz not null,
+            loaded_at timestamptz not null default now(),
+            primary key (policy_holder_id, loaded_at)
+        );
+
+        create table if not exists staging.insurance_policies (
+            policy_id integer primary key,
+            policy_holder_id integer not null,
+            policy_number varchar(64) not null,
+            product_type varchar(64) not null,
+            premium_amount numeric(14, 2) not null,
+            coverage_start_date date not null,
+            coverage_end_date date not null,
+            status varchar(32) not null,
+            loaded_at timestamptz not null default now()
+        );
+
+        create table if not exists staging.insurance_claims (
+            claim_id integer primary key,
+            policy_id integer not null,
+            claim_amount numeric(14, 2) not null,
+            status varchar(32) not null,
+            filed_at timestamptz not null,
+            settled_at timestamptz,
+            loaded_at timestamptz not null default now()
+        );
         """
     )
 
@@ -159,7 +232,11 @@ def insert_branches(cur, rows: List[Dict[str, Any]]) -> None:
         cur,
         """
         INSERT INTO branches (branch_id, branch_name, city, opened_at)
-        VALUES (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s);
+        VALUES (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s)
+        ON CONFLICT (branch_id) DO UPDATE SET
+            branch_name = EXCLUDED.branch_name,
+            city = EXCLUDED.city,
+            opened_at = EXCLUDED.opened_at;
         """,
         rows,
     )
@@ -176,7 +253,14 @@ def insert_customers(cur, rows: List[Dict[str, Any]]) -> None:
         VALUES (
             %(customer_id)s, %(national_id)s, %(phone_number)s, %(full_name)s, %(email)s,
             %(primary_branch_id)s, %(created_at)s
-        );
+        )
+        ON CONFLICT (customer_id) DO UPDATE SET
+            national_id = EXCLUDED.national_id,
+            phone_number = EXCLUDED.phone_number,
+            full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            primary_branch_id = EXCLUDED.primary_branch_id,
+            created_at = EXCLUDED.created_at;
         """,
         rows,
     )
@@ -236,7 +320,13 @@ def insert_policy_holders(cur, rows: List[Dict[str, Any]]) -> None:
         VALUES (
             %(policy_holder_id)s, %(national_id)s, %(phone_number)s, %(full_name)s,
             %(email)s, %(created_at)s
-        );
+        )
+        ON CONFLICT (policy_holder_id) DO UPDATE SET
+            national_id = EXCLUDED.national_id,
+            phone_number = EXCLUDED.phone_number,
+            full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            created_at = EXCLUDED.created_at;
         """,
         rows,
     )
@@ -275,122 +365,185 @@ def insert_claims(cur, rows: List[Dict[str, Any]]) -> None:
     )
 
 
-def mirror_lending_raw(cur, lending, loaded_at: datetime) -> None:
-    execute_batch(
-        cur,
+def _fetch_rows(cur, query: str) -> List[Dict[str, Any]]:
+    cur.execute(query)
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def _append_staging(cur, insert_sql: str, rows: List[Dict[str, Any]], loaded_at: datetime) -> None:
+    payload = [{**row, "loaded_at": loaded_at} for row in rows]
+    if payload:
+        execute_batch(cur, insert_sql, payload)
+
+
+def pull_staging_scd2_snapshot(c1, c2, ca, loaded_at: datetime) -> None:
+    lending_branches = _fetch_rows(c1, "select branch_id, branch_name, city, opened_at from branches")
+    lending_customers = _fetch_rows(
+        c1,
         """
-        INSERT INTO raw_lending.loan_applications (
+        select customer_id, national_id, phone_number, full_name, email, primary_branch_id, created_at
+        from customers
+        """,
+    )
+    insurance_policy_holders = _fetch_rows(
+        c2,
+        """
+        select policy_holder_id, national_id, phone_number, full_name, email, created_at
+        from policy_holders
+        """,
+    )
+
+    _append_staging(
+        ca,
+        """
+        insert into staging.lending_branches (branch_id, branch_name, city, opened_at, loaded_at)
+        values (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s, %(loaded_at)s)
+        """,
+        lending_branches,
+        loaded_at,
+    )
+    _append_staging(
+        ca,
+        """
+        insert into staging.lending_customers (
+            customer_id, national_id, phone_number, full_name, email, primary_branch_id, created_at, loaded_at
+        )
+        values (
+            %(customer_id)s, %(national_id)s, %(phone_number)s, %(full_name)s, %(email)s,
+            %(primary_branch_id)s, %(created_at)s, %(loaded_at)s
+        )
+        """,
+        lending_customers,
+        loaded_at,
+    )
+    _append_staging(
+        ca,
+        """
+        insert into staging.insurance_policy_holders (
+            policy_holder_id, national_id, phone_number, full_name, email, created_at, loaded_at
+        )
+        values (
+            %(policy_holder_id)s, %(national_id)s, %(phone_number)s, %(full_name)s,
+            %(email)s, %(created_at)s, %(loaded_at)s
+        )
+        """,
+        insurance_policy_holders,
+        loaded_at,
+    )
+
+
+def pull_staging_static_tables(c1, c2, ca, loaded_at: datetime) -> None:
+    lending_apps = _fetch_rows(
+        c1,
+        """
+        select application_id, customer_id, branch_id, amount_requested, status, applied_at
+        from loan_applications
+        """,
+    )
+    lending_loans = _fetch_rows(
+        c1,
+        """
+        select loan_id, application_id, customer_id, branch_id, principal_amount, status, disbursement_date, created_at
+        from loans
+        """,
+    )
+    lending_repayments = _fetch_rows(
+        c1,
+        """
+        select repayment_id, loan_id, amount, paid_at, status
+        from repayments
+        """,
+    )
+    insurance_policies = _fetch_rows(
+        c2,
+        """
+        select policy_id, policy_holder_id, policy_number, product_type, premium_amount, coverage_start_date, coverage_end_date, status
+        from policies
+        """,
+    )
+    insurance_claims = _fetch_rows(
+        c2,
+        """
+        select claim_id, policy_id, claim_amount, status, filed_at, settled_at
+        from claims
+        """,
+    )
+
+    _append_staging(
+        ca,
+        """
+        insert into staging.lending_loan_applications (
             application_id, customer_id, branch_id, amount_requested, status, applied_at, loaded_at
+        ) values (
+            %(application_id)s, %(customer_id)s, %(branch_id)s, %(amount_requested)s, %(status)s, %(applied_at)s, %(loaded_at)s
         )
-        VALUES (
-            %(application_id)s, %(customer_id)s, %(branch_id)s, %(amount_requested)s,
-            %(status)s, %(applied_at)s, %(loaded_at)s
-        );
         """,
-        [{**r, "loaded_at": loaded_at} for r in lending.loan_applications],
+        lending_apps,
+        loaded_at,
     )
-    execute_batch(
-        cur,
+    _append_staging(
+        ca,
         """
-        INSERT INTO raw_lending.loans (
-            loan_id, application_id, customer_id, branch_id, principal_amount,
-            status, disbursement_date, created_at, loaded_at
+        insert into staging.lending_loans (
+            loan_id, application_id, customer_id, branch_id, principal_amount, status, disbursement_date, created_at, loaded_at
+        ) values (
+            %(loan_id)s, %(application_id)s, %(customer_id)s, %(branch_id)s, %(principal_amount)s, %(status)s,
+            %(disbursement_date)s, %(created_at)s, %(loaded_at)s
         )
-        VALUES (
-            %(loan_id)s, %(application_id)s, %(customer_id)s, %(branch_id)s,
-            %(principal_amount)s, %(status)s, %(disbursement_date)s, %(created_at)s, %(loaded_at)s
-        );
         """,
-        [{**r, "loaded_at": loaded_at} for r in lending.loans],
+        lending_loans,
+        loaded_at,
     )
-    execute_batch(
-        cur,
+    _append_staging(
+        ca,
         """
-        INSERT INTO raw_lending.repayments (
+        insert into staging.lending_repayments (
             repayment_id, loan_id, amount, paid_at, status, loaded_at
-        )
-        VALUES (
+        ) values (
             %(repayment_id)s, %(loan_id)s, %(amount)s, %(paid_at)s, %(status)s, %(loaded_at)s
-        );
+        )
         """,
-        [{**r, "loaded_at": loaded_at} for r in lending.repayments],
+        lending_repayments,
+        loaded_at,
     )
-
-
-def mirror_lending_raw_scd2_batches(cur, lending, loaded_at_list: List[datetime]) -> None:
-    for batch_index, loaded_at in enumerate(loaded_at_list):
-        branches, customers = _lending_scd2_snapshot(lending, batch_index)
-        execute_batch(
-            cur,
-            """
-            INSERT INTO raw_lending.branches (branch_id, branch_name, city, opened_at, loaded_at)
-            VALUES (%(branch_id)s, %(branch_name)s, %(city)s, %(opened_at)s, %(loaded_at)s);
-            """,
-            [{**r, "loaded_at": loaded_at} for r in branches],
-        )
-        execute_batch(
-            cur,
-            """
-            INSERT INTO raw_lending.customers (
-                customer_id, national_id, phone_number, full_name, email,
-                primary_branch_id, created_at, loaded_at
-            )
-            VALUES (
-                %(customer_id)s, %(national_id)s, %(phone_number)s, %(full_name)s, %(email)s,
-                %(primary_branch_id)s, %(created_at)s, %(loaded_at)s
-            );
-            """,
-            [{**r, "loaded_at": loaded_at} for r in customers],
-        )
-
-
-def mirror_insurance_raw(cur, insurance, loaded_at: datetime) -> None:
-    execute_batch(
-        cur,
+    _append_staging(
+        ca,
         """
-        INSERT INTO raw_insurance.policies (
+        insert into staging.insurance_policies (
             policy_id, policy_holder_id, policy_number, product_type, premium_amount,
             coverage_start_date, coverage_end_date, status, loaded_at
+        ) values (
+            %(policy_id)s, %(policy_holder_id)s, %(policy_number)s, %(product_type)s, %(premium_amount)s,
+            %(coverage_start_date)s, %(coverage_end_date)s, %(status)s, %(loaded_at)s
         )
-        VALUES (
-            %(policy_id)s, %(policy_holder_id)s, %(policy_number)s, %(product_type)s,
-            %(premium_amount)s, %(coverage_start_date)s, %(coverage_end_date)s, %(status)s,
-            %(loaded_at)s
-        );
         """,
-        [{**r, "loaded_at": loaded_at} for r in insurance.policies],
+        insurance_policies,
+        loaded_at,
     )
-    execute_batch(
-        cur,
+    _append_staging(
+        ca,
         """
-        INSERT INTO raw_insurance.claims (
+        insert into staging.insurance_claims (
             claim_id, policy_id, claim_amount, status, filed_at, settled_at, loaded_at
+        ) values (
+            %(claim_id)s, %(policy_id)s, %(claim_amount)s, %(status)s, %(filed_at)s, %(settled_at)s, %(loaded_at)s
         )
-        VALUES (
-            %(claim_id)s, %(policy_id)s, %(claim_amount)s, %(status)s,
-            %(filed_at)s, %(settled_at)s, %(loaded_at)s
-        );
         """,
-        [{**r, "loaded_at": loaded_at} for r in insurance.claims],
+        insurance_claims,
+        loaded_at,
     )
 
 
-def mirror_insurance_raw_scd2_batches(cur, insurance, loaded_at_list: List[datetime]) -> None:
+def apply_scd2_snapshots_to_sources_and_pull(c1, c2, ca, lending, insurance, loaded_at_list: List[datetime]) -> None:
     for batch_index, loaded_at in enumerate(loaded_at_list):
+        branches, customers = _lending_scd2_snapshot(lending, batch_index)
         policy_holders = _insurance_scd2_snapshot(insurance, batch_index)
-        execute_batch(
-            cur,
-            """
-            INSERT INTO raw_insurance.policy_holders (
-                policy_holder_id, national_id, phone_number, full_name, email, created_at, loaded_at
-            )
-            VALUES (
-                %(policy_holder_id)s, %(national_id)s, %(phone_number)s, %(full_name)s,
-                %(email)s, %(created_at)s, %(loaded_at)s
-            );
-            """,
-            [{**r, "loaded_at": loaded_at} for r in policy_holders],
-        )
+
+        insert_branches(c1, branches)
+        insert_customers(c1, customers)
+        insert_policy_holders(c2, policy_holders)
+        pull_staging_scd2_snapshot(c1, c2, ca, loaded_at)
 
 
 def main() -> int:
@@ -431,16 +584,17 @@ def main() -> int:
                 insert_policies(c2, insurance.policies)
                 insert_claims(c2, insurance.claims)
 
-                print("Truncating analytics raw layers...")
-                ensure_analytics_raw_scd2_schema(ca)
-                truncate_analytics_raw(ca)
-                print("Mirroring into analytics_db raw_lending / raw_insurance...")
-                mirror_lending_raw_scd2_batches(ca, lending, scd2_batches)
-                mirror_insurance_raw_scd2_batches(ca, insurance, scd2_batches)
-                mirror_lending_raw(ca, lending, loaded_at)
-                mirror_insurance_raw(ca, insurance, loaded_at)
+                ensure_analytics_staging_schema(ca)
+                print("Truncating analytics staging landing tables...")
+                truncate_analytics_staging(ca)
 
-        print("Done. Rows loaded into sources and analytics raw schemas.")
+                print("Applying SCD2 snapshots and pulling from production -> analytics staging...")
+                apply_scd2_snapshots_to_sources_and_pull(c1, c2, ca, lending, insurance, scd2_batches)
+
+                print("Pulling transactional tables directly from production -> analytics staging...")
+                pull_staging_static_tables(c1, c2, ca, loaded_at)
+
+        print("Done. Rows loaded into production sources and analytics staging landing tables.")
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

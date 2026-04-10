@@ -1,6 +1,6 @@
 contract_version: "1.0.0"
-schema: raw_lending
-table: branches
+schema: staging
+table: lending_branches
 description: Lending branch reference data mirrored into analytics.
 owner: finance_demo
 columns:

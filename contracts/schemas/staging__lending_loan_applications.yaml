@@ -1,29 +1,29 @@
 contract_version: "1.0.0"
-schema: raw_insurance
-table: claims
-description: Insurance claims mirrored into analytics.
+schema: staging
+table: lending_loan_applications
+description: Loan applications mirrored into analytics.
 owner: finance_demo
 columns:
-  claim_id:
+  application_id:
     physical_type: integer
     nullable: false
     unique: true
-  policy_id:
+  customer_id:
     physical_type: integer
     nullable: false
-  claim_amount:
+  branch_id:
+    physical_type: integer
+    nullable: false
+  amount_requested:
     physical_type: numeric
     nullable: false
   status:
     physical_type: varchar
     nullable: false
-    enum: [open, approved, denied, closed]
-  filed_at:
+    enum: [pending, approved, rejected]
+  applied_at:
     physical_type: timestamptz
     nullable: false
-  settled_at:
-    physical_type: timestamptz
-    nullable: true
   loaded_at:
     physical_type: timestamptz
     nullable: false

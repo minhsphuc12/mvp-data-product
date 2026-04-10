@@ -4,7 +4,7 @@ This document describes the **local demo** finance data platform: components, ru
 
 ## 1. Scope and goals
 
-- **In scope:** Two operational Postgres databases, one analytics Postgres, batch synthetic load, dbt transformations, local lineage artifacts, optional Metabase (Compose profile `bi`), explicit raw YAML contracts, GitHub Actions CI, optional Prefect flow, incremental staging example.
+- **In scope:** Two operational Postgres databases, one analytics Postgres, batch synthetic load, dbt transformations, local lineage artifacts, optional Metabase (Compose profile `bi`), explicit staging YAML contracts, GitHub Actions CI, optional Prefect flow, incremental staging example.
 - **Out of scope (by default):** Full streaming stack (Kafka, Debezium), production HA, hosted catalog deployment. See [roadmap.md](roadmap.md) and [realtime-and-cdc.md](realtime-and-cdc.md) for extension paths.
 
 **Primary goal:** Make **data origin and transformations inspectable** in under 30 minutes for a single engineer.
@@ -15,9 +15,9 @@ This document describes the **local demo** finance data platform: components, ru
 |-----------|------------|------|
 | Orchestration | Docker Compose | Single command to start three Postgres instances |
 | Source systems | PostgreSQL 16 (Alpine) | `source_db_1` (lending), `source_db_2` (insurance) |
-| Warehouse host | PostgreSQL 16 | `analytics_db` holds raw mirrors and dbt-built schemas |
-| Data generation & load | Python 3.11–3.13 | Generates deterministic synthetic data; truncates sources; loads sources + `raw_*` mirror |
-| Transformations | dbt-core + dbt-postgres | Staging → intermediate → marts on `analytics_db` only |
+| Warehouse host | PostgreSQL 16 | `analytics_db` holds staging landing tables and dbt-built schemas |
+| Data generation & load | Python 3.11–3.13 | Generates deterministic synthetic data; truncates sources; loads sources and pulls snapshots into `analytics_db.staging` |
+| Transformations | dbt-core + dbt-postgres | Staging -> intermediate -> marts on `analytics_db` only |
 | Lineage export | Python script | Reads `target/manifest.json`, emits Mermaid |
 
 Ports and credentials are **environment-driven** via `.env` (see `.env.example`).
@@ -25,8 +25,8 @@ Ports and credentials are **environment-driven** via `.env` (see `.env.example`)
 ## 3. Data movement pattern
 
 1. **Operational truth (simulated):** Lending and insurance apps write to their respective source DBs (here: populated only by the demo loader).
-2. **Analytics landing:** The same payloads are **re-inserted** into `analytics_db.raw_lending` and `analytics_db.raw_insurance` with a `loaded_at` column where defined.
-3. **Transformations:** dbt reads **only** `raw_*` schemas; no cross-database dbt connections.
+2. **Analytics landing:** Batch ingest pulls directly from production tables into `analytics_db.staging.*` with `loaded_at`.
+3. **Transformations:** dbt reads only staging landing sources in `analytics_db`.
 
 This is **batch replication**, not log-based CDC.
 
@@ -34,12 +34,11 @@ This is **batch replication**, not log-based CDC.
 
 | Schema | Owner / tool | Contents |
 |--------|----------------|----------|
-| `raw_lending`, `raw_insurance` | Python loader | Mirrored operational tables |
-| `staging` | dbt | Mostly `stg_*` views; `stg_lending_loans` is an incremental table (merge on `loan_id`) for CDC-style demos |
+| `staging` | Python loader + dbt sources | Landing tables (`lending_*`, `insurance_*`) used as dbt sources |
 | `intermediate` | dbt | Identity resolution, 360 view, loan cashflow, policy-claim rollups |
 | `marts` | dbt (tables) | Dimensions, facts, `mart_branch_monthly_performance` |
 
-Custom macro `generate_schema_name` maps dbt `+schema` values to **exact** Postgres schema names (no `target_` prefix).
+Custom macro `generate_schema_name` maps dbt `+schema` values to exact Postgres schema names (no `target_` prefix).
 
 ## 5. Application layout (repository)
 
@@ -61,27 +60,9 @@ Custom macro `generate_schema_name` maps dbt `+schema` values to **exact** Postg
 | `make up` | Start Compose stack |
 | `make bi-up` | Start optional Metabase service (`--profile bi`) |
 | `make bi-down` | Stop optional Metabase service (`--profile bi`) |
-| `make seed-data` | Truncate + load sources + raw mirror |
+| `make seed-data` | Truncate + load sources + pull into staging landing |
 | `make transform` | `dbt run` |
 | `make test` | `dbt test` |
 | `make docs` | `dbt docs generate` |
-| `make lineage` | Manifest → `lineage/lineage.mmd` + `lineage/lineage.md` |
+| `make lineage` | Manifest -> `lineage/lineage.mmd` + `lineage/lineage.md` |
 | `make demo` | `up` + short wait + seed + dbt + tests + docs + lineage |
-
-## 8. Non-functional choices
-
-- **Determinism:** Fixed RNG seeds in generators for reproducible demos.
-- **Python version:** dbt-core is validated on 3.11–3.13; 3.14+ may fail (see `requirements.txt` / `bootstrap.sh`).
-- **Performance:** No partitioning, no incremental models required for demo volumes.
-
-## 9. Extension hooks (not implemented)
-
-- Optional Metabase service in Compose.
-- SCD2 on `dim_customer`.
-- Orchestrated schedules (cron, Prefect, Airflow).
-- Real-time ingestion or external ELT tool reading binlogs/WAL.
-
-## 10. BI implementation notes
-
-- A runnable local BI path is documented in `docs/bi-setup-and-semantic-alignment.md`.
-- SQL templates for Metabase live in `bi/sql/` and align KPI formulas with `models/marts/_mart_branch_monthly_semantic.yml`.

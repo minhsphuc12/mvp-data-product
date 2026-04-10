@@ -1,0 +1,20 @@
+contract_version: "1.0.0"
+system: source_db_1
+schema: public
+table: branches
+description: Lending operational branches table in source_db_1.
+owner: finance_demo
+columns:
+  branch_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  branch_name:
+    physical_type: varchar
+    nullable: false
+  city:
+    physical_type: varchar
+    nullable: false
+  opened_at:
+    physical_type: timestamptz
+    nullable: false

@@ -7,7 +7,7 @@ select
     amount_requested,
     status as application_status,
     applied_at,
-    'raw_lending.loan_applications' as record_source,
+    'staging.lending_loan_applications' as record_source,
     'lending_core' as source_system,
     coalesce(loaded_at, current_timestamp) as loaded_at
-from {{ source('raw_lending', 'loan_applications') }}
+from {{ source('staging_lending', 'lending_loan_applications') }}

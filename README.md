@@ -1,6 +1,6 @@
 # Local finance data platform demo
 
-Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with raw mirror layers, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. No CDC, no orchestrator, no cloud.
+Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with staging landing layer, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. No CDC, no orchestrator, no cloud.
 
 ## Changelog
 
@@ -49,9 +49,9 @@ flowchart TB
     S2[(source_db_2 insurance)]
   end
   subgraph wh [analytics_db]
-    R1[raw_lending]
-    R2[raw_insurance]
-    STG[staging]
+    LND[staging.lending_*]
+    INS[staging.insurance_*]
+    STG[stg_*]
     INT[intermediate]
     MRT[marts]
   end
@@ -59,10 +59,10 @@ flowchart TB
   DBT[dbt-core]
   S1 --> Py
   S2 --> Py
-  Py --> R1
-  Py --> R2
-  R1 --> DBT
-  R2 --> DBT
+  Py --> LND
+  Py --> INS
+  LND --> DBT
+  INS --> DBT
   DBT --> STG
   STG --> INT
   INT --> MRT
@@ -72,7 +72,7 @@ flowchart TB
 
 ### Why this is transparent
 
-- **Explicit boundaries:** operational schemas stay isolated; analytics only consumes `raw_`* mirrors you can inspect with SQL.
+- **Explicit boundaries:** operational schemas stay isolated; analytics only consumes staging landing tables you can inspect with SQL.
 - **dbt as documentation:** `sources.yml` declares physical tables; each model is a named step with tests.
 - **Lineage:** `dbt docs generate` produces a DAG; `lineage/render_lineage.py` exports a Mermaid graph from `target/manifest.json`.
 
@@ -91,7 +91,7 @@ bash scripts/bootstrap.sh
 source .venv/bin/activate
 
 make up          # start three Postgres containers
-make seed-data   # synthetic data → sources + raw mirror on analytics_db
+make seed-data   # synthetic data -> sources + direct pull into analytics_db.staging
 make validate-scd2-seed  # verify time-varying snapshots for SCD2 demo
 make transform   # dbt run
 make semantic-build     # build curated semantic views under schema semantic
@@ -113,16 +113,16 @@ make demo
 ## Source → mart flow
 
 
-| Source (operational + raw mirror) | Staging                         | Intermediate                                           | Marts                             |
+| Source (operational + staging landing) | Staging                         | Intermediate                                           | Marts                             |
 | --------------------------------- | ------------------------------- | ------------------------------------------------------ | --------------------------------- |
-| `raw_lending.branches`            | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
-| `raw_lending.customers`           | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
-| `raw_lending.loan_applications`   | `stg_lending_loan_applications` | —                                                      | (via facts context)               |
-| `raw_lending.loans`               | `stg_lending_loans`             | `int_daily_loan_cashflow`                              | `fct_loan_disbursement`           |
-| `raw_lending.repayments`          | `stg_lending_repayments`        | `int_daily_loan_cashflow`                              | `fct_repayment`                   |
-| `raw_insurance.policy_holders`    | `stg_insurance_policy_holders`  | identity + `int_customer_360`                          | `dim_customer`                    |
-| `raw_insurance.policies`          | `stg_insurance_policies`        | `int_policy_claim_summary`                             | `fct_policy`                      |
-| `raw_insurance.claims`            | `stg_insurance_claims`          | `int_policy_claim_summary`                             | `fct_claim`                       |
+| `staging.lending_branches`            | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
+| `staging.lending_customers`           | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
+| `staging.lending_loan_applications`   | `stg_lending_loan_applications` | —                                                      | (via facts context)               |
+| `staging.lending_loans`               | `stg_lending_loans`             | `int_daily_loan_cashflow`                              | `fct_loan_disbursement`           |
+| `staging.lending_repayments`          | `stg_lending_repayments`        | `int_daily_loan_cashflow`                              | `fct_repayment`                   |
+| `staging.insurance_policy_holders`    | `stg_insurance_policy_holders`  | identity + `int_customer_360`                          | `dim_customer`                    |
+| `staging.insurance_policies`          | `stg_insurance_policies`        | `int_policy_claim_summary`                             | `fct_policy`                      |
+| `staging.insurance_claims`            | `stg_insurance_claims`          | `int_policy_claim_summary`                             | `fct_claim`                       |
 | (calendar spine)                  | —                               | —                                                      | `dim_date`                        |
 | Facts + dims                      | —                               | —                                                      | `mart_branch_monthly_performance` |
 
@@ -130,7 +130,7 @@ make demo
 ## Data model notes
 
 - **Grains:** `fct_loan_disbursement` = one row per loan; `fct_repayment` = one row per repayment; `fct_policy` = one row per policy; `fct_claim` = one row per claim; `mart_branch_monthly_performance` = `branch_id` × `month_start_date`.
-- **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (from raw `loaded_at` when present).
+- **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (from staging landing `loaded_at`).
 - `dim_customer` and `dim_branch` are modeled as SCD2 with `valid_from_ts`, `valid_to_ts`, `is_current`, `version_number`.
 - Facts resolve dimension keys using point-in-time joins on event timestamps.
 

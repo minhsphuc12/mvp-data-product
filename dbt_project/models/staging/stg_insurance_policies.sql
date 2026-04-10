@@ -9,7 +9,7 @@ select
     coverage_start_date,
     coverage_end_date,
     status as policy_status,
-    'raw_insurance.policies' as record_source,
+    'staging.insurance_policies' as record_source,
     'insurance_core' as source_system,
     coalesce(loaded_at, current_timestamp) as loaded_at
-from {{ source('raw_insurance', 'policies') }}
+from {{ source('staging_insurance', 'insurance_policies') }}

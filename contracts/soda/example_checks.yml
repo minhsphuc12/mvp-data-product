@@ -3,9 +3,9 @@
 #
 # Notes:
 # - Dataset names below use the `schema.table` format (Postgres).
-# - Keep these checks aligned with the raw-layer contracts under `contracts/schemas/`.
+# - Keep these checks aligned with the staging-landing contracts under `contracts/schemas/`.
 
-checks for raw_lending.branches:
+checks for staging.lending_branches:
   - missing_count(branch_id) = 0
   - duplicate_count(branch_id) = 0
   - missing_count(branch_name) = 0
@@ -14,7 +14,7 @@ checks for raw_lending.branches:
   - missing_count(loaded_at) = 0
   - freshness(loaded_at) < 2d
 
-checks for raw_lending.customers:
+checks for staging.lending_customers:
   - missing_count(customer_id) = 0
   - duplicate_count(customer_id) = 0
   - missing_count(phone_number) = 0
@@ -27,7 +27,7 @@ checks for raw_lending.customers:
       valid regex: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
       filter: "email is not null"
 
-checks for raw_lending.loan_applications:
+checks for staging.lending_loan_applications:
   - missing_count(application_id) = 0
   - duplicate_count(application_id) = 0
   - missing_count(customer_id) = 0
@@ -41,7 +41,7 @@ checks for raw_lending.loan_applications:
   - missing_count(loaded_at) = 0
   - freshness(loaded_at) < 2d
 
-checks for raw_lending.loans:
+checks for staging.lending_loans:
   - missing_count(loan_id) = 0
   - duplicate_count(loan_id) = 0
   - missing_count(customer_id) = 0
@@ -56,7 +56,7 @@ checks for raw_lending.loans:
   - missing_count(loaded_at) = 0
   - freshness(loaded_at) < 2d
 
-checks for raw_lending.repayments:
+checks for staging.lending_repayments:
   - missing_count(repayment_id) = 0
   - duplicate_count(repayment_id) = 0
   - missing_count(loan_id) = 0
@@ -69,7 +69,7 @@ checks for raw_lending.repayments:
   - missing_count(loaded_at) = 0
   - freshness(loaded_at) < 2d
 
-checks for raw_insurance.policy_holders:
+checks for staging.insurance_policy_holders:
   - missing_count(policy_holder_id) = 0
   - duplicate_count(policy_holder_id) = 0
   - missing_count(phone_number) = 0
@@ -81,7 +81,7 @@ checks for raw_insurance.policy_holders:
       valid regex: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
       filter: "email is not null"
 
-checks for raw_insurance.policies:
+checks for staging.insurance_policies:
   - missing_count(policy_id) = 0
   - duplicate_count(policy_id) = 0
   - missing_count(policy_holder_id) = 0
@@ -98,7 +98,7 @@ checks for raw_insurance.policies:
   - missing_count(loaded_at) = 0
   - freshness(loaded_at) < 2d
 
-checks for raw_insurance.claims:
+checks for staging.insurance_claims:
   - missing_count(claim_id) = 0
   - duplicate_count(claim_id) = 0
   - missing_count(policy_id) = 0

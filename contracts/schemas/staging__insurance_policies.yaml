@@ -1,6 +1,6 @@
 contract_version: "1.0.0"
-schema: raw_insurance
-table: policies
+schema: staging
+table: insurance_policies
 description: Insurance policies mirrored into analytics.
 owner: finance_demo
 columns:

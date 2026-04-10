@@ -1,6 +1,6 @@
 contract_version: "1.0.0"
-schema: raw_lending
-table: loans
+schema: staging
+table: lending_loans
 description: Loans mirrored into analytics; `loaded_at` supports incremental staging.
 owner: finance_demo
 columns:

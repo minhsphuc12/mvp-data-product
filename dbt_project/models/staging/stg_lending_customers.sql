@@ -9,7 +9,7 @@ select
     email,
     primary_branch_id,
     created_at,
-    'raw_lending.customers' as record_source,
+    'staging.lending_customers' as record_source,
     'lending_core' as source_system,
     coalesce(loaded_at, current_timestamp) as loaded_at
-from {{ source('raw_lending', 'customers') }}
+from {{ source('staging_lending', 'lending_customers') }}

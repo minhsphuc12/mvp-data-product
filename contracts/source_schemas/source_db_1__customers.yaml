@@ -1,12 +1,14 @@
 contract_version: "1.0.0"
-schema: raw_insurance
-table: policy_holders
-description: Insurance policy holders mirrored into analytics.
+system: source_db_1
+schema: public
+table: customers
+description: Lending operational customers table in source_db_1.
 owner: finance_demo
 columns:
-  policy_holder_id:
+  customer_id:
     physical_type: integer
     nullable: false
+    unique: true
   national_id:
     physical_type: varchar
     nullable: true
@@ -19,9 +21,9 @@ columns:
   email:
     physical_type: varchar
     nullable: true
-  created_at:
-    physical_type: timestamptz
+  primary_branch_id:
+    physical_type: integer
     nullable: false
-  loaded_at:
+  created_at:
     physical_type: timestamptz
     nullable: false

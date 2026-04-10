@@ -1,9 +1,10 @@
--- Analytics warehouse: raw landing zones (mirrored from operational DBs via Python)
-CREATE SCHEMA IF NOT EXISTS raw_lending;
-CREATE SCHEMA IF NOT EXISTS raw_insurance;
+-- Analytics warehouse: staging landing zones pulled directly from production.
+CREATE SCHEMA IF NOT EXISTS staging;
+CREATE SCHEMA IF NOT EXISTS intermediate;
+CREATE SCHEMA IF NOT EXISTS marts;
 
--- Lending raw tables (same shape as source_db_1)
-CREATE TABLE IF NOT EXISTS raw_lending.branches (
+-- Lending landing tables (shape aligned to source_db_1, plus loaded_at).
+CREATE TABLE IF NOT EXISTS staging.lending_branches (
     branch_id       INTEGER NOT NULL,
     branch_name     VARCHAR(120) NOT NULL,
     city            VARCHAR(100) NOT NULL,
@@ -12,7 +13,7 @@ CREATE TABLE IF NOT EXISTS raw_lending.branches (
     PRIMARY KEY (branch_id, loaded_at)
 );
 
-CREATE TABLE IF NOT EXISTS raw_lending.customers (
+CREATE TABLE IF NOT EXISTS staging.lending_customers (
     customer_id         INTEGER NOT NULL,
     national_id         VARCHAR(32),
     phone_number        VARCHAR(32) NOT NULL,
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS raw_lending.customers (
     PRIMARY KEY (customer_id, loaded_at)
 );
 
-CREATE TABLE IF NOT EXISTS raw_lending.loan_applications (
+CREATE TABLE IF NOT EXISTS staging.lending_loan_applications (
     application_id      INTEGER PRIMARY KEY,
     customer_id         INTEGER NOT NULL,
     branch_id           INTEGER NOT NULL,
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS raw_lending.loan_applications (
     loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS raw_lending.loans (
+CREATE TABLE IF NOT EXISTS staging.lending_loans (
     loan_id             INTEGER PRIMARY KEY,
     application_id      INTEGER,
     customer_id         INTEGER NOT NULL,
@@ -46,7 +47,7 @@ CREATE TABLE IF NOT EXISTS raw_lending.loans (
     loaded_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS raw_lending.repayments (
+CREATE TABLE IF NOT EXISTS staging.lending_repayments (
     repayment_id    INTEGER PRIMARY KEY,
     loan_id         INTEGER NOT NULL,
     amount          NUMERIC(14, 2) NOT NULL,
@@ -55,8 +56,8 @@ CREATE TABLE IF NOT EXISTS raw_lending.repayments (
     loaded_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Insurance raw tables (same shape as source_db_2)
-CREATE TABLE IF NOT EXISTS raw_insurance.policy_holders (
+-- Insurance landing tables (shape aligned to source_db_2, plus loaded_at).
+CREATE TABLE IF NOT EXISTS staging.insurance_policy_holders (
     policy_holder_id    INTEGER NOT NULL,
     national_id         VARCHAR(32),
     phone_number        VARCHAR(32) NOT NULL,
@@ -67,7 +68,7 @@ CREATE TABLE IF NOT EXISTS raw_insurance.policy_holders (
     PRIMARY KEY (policy_holder_id, loaded_at)
 );
 
-CREATE TABLE IF NOT EXISTS raw_insurance.policies (
+CREATE TABLE IF NOT EXISTS staging.insurance_policies (
     policy_id               INTEGER PRIMARY KEY,
     policy_holder_id        INTEGER NOT NULL,
     policy_number           VARCHAR(64) NOT NULL,
@@ -79,7 +80,7 @@ CREATE TABLE IF NOT EXISTS raw_insurance.policies (
     loaded_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS raw_insurance.claims (
+CREATE TABLE IF NOT EXISTS staging.insurance_claims (
     claim_id        INTEGER PRIMARY KEY,
     policy_id       INTEGER NOT NULL,
     claim_amount    NUMERIC(14, 2) NOT NULL,
@@ -89,7 +90,3 @@ CREATE TABLE IF NOT EXISTS raw_insurance.claims (
     loaded_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- dbt-managed schemas (created explicitly for clarity; dbt can also create on run)
-CREATE SCHEMA IF NOT EXISTS staging;
-CREATE SCHEMA IF NOT EXISTS intermediate;
-CREATE SCHEMA IF NOT EXISTS marts;

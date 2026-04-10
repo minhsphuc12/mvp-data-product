@@ -1,0 +1,27 @@
+contract_version: "1.0.0"
+system: source_db_2
+schema: public
+table: claims
+description: Insurance operational claims table in source_db_2.
+owner: finance_demo
+columns:
+  claim_id:
+    physical_type: integer
+    nullable: false
+    unique: true
+  policy_id:
+    physical_type: integer
+    nullable: false
+  claim_amount:
+    physical_type: numeric
+    nullable: false
+  status:
+    physical_type: varchar
+    nullable: false
+    enum: [open, approved, denied, closed]
+  filed_at:
+    physical_type: timestamptz
+    nullable: false
+  settled_at:
+    physical_type: timestamptz
+    nullable: true

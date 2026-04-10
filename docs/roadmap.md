@@ -11,7 +11,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | Layer | Delivered |
 | ----- | --------- |
 | Sources and infra | Two operational Postgres databases (lending + insurance), one `analytics_db`; Docker Compose; Python synthetic generation and load. |
-| Ingestion | Batch `make seed-data` into `raw_lending` / `raw_insurance` mirrors (no CDC in the default path). |
+| Ingestion | Batch `make seed-data` pulling from source DBs into `analytics_db.staging` landing tables (no CDC in the default path). |
 | Transform | dbt: staging → intermediate → marts; macros (`surrogate_key`, schema naming). |
 | Business modeling | Deterministic identity resolution (`int_customer_identity_resolution` → `int_customer_360` → `dim_customer`); facts (loan, repayment, policy, claim); `dim_branch`, `dim_date`; `mart_branch_monthly_performance` (branch × month grain). |
 | Quality and light contracts | dbt tests on sources and marts (`unique`, `not_null`, `relationships`, `accepted_values`); exposures for a conceptual dashboard. |
@@ -29,7 +29,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | ---- | ------ | ----- |
 | Document CDC and streaming options | Done | See [realtime-and-cdc.md](realtime-and-cdc.md). |
 | Postgres `wal_level=logical` on source DBs (Compose) | Done | Enables logical decoding for future Debezium or native replication. |
-| Example incremental staging on `raw_lending.loans` | Done | `stg_lending_loans` materialized as incremental table with `loaded_at` watermark (see model config). |
+| Example incremental staging on `staging.lending_loans` | Done | `stg_lending_loans` materialized as incremental table with `loaded_at` watermark (see model config). |
 | Debezium / Kafka / full streaming stack | Planned | Optional extension; not bundled by default. |
 | Orchestrated refresh (Prefect) | Done (optional) | `orchestration/refresh_flow.py` + `requirements-orchestration.txt`; run locally or wire to a Prefect server. |
 
@@ -56,7 +56,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| Explicit YAML contracts for raw tables | Done | Under `contracts/schemas/`; versioning fields per table. |
+| Explicit YAML contracts for staging landing tables | Done | Under `contracts/schemas/`; versioning fields per table. |
 | Contract validation script (structure + alignment with dbt `sources`) | Done | `scripts/validate_data_contracts.py`; `make validate-contracts`. |
 | CI: Docker Compose + seed + dbt test | Done | `.github/workflows/dbt.yml`. |
 | Soda / Great Expectations / dbt constraints in warehouse | Planned | Extend CI or add optional checks when you adopt a tool. |
@@ -86,6 +86,6 @@ flowchart LR
 
 | Action | Command / location |
 | ------ | ------------------ |
-| Validate raw contracts | `make validate-contracts` |
+| Validate staging landing contracts | `make validate-contracts` |
 | Start Metabase | `docker compose --profile bi up -d` (see `.env.example` for `METABASE_PORT`) |
 | Prefect refresh flow (after `pip install -r requirements-orchestration.txt`) | `python orchestration/refresh_flow.py` or register with Prefect as needed |
