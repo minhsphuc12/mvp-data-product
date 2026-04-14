@@ -4,7 +4,7 @@ export PYTHONPATH := $(ROOT)
 PY := $(if $(wildcard $(ROOT).venv/bin/python),$(ROOT).venv/bin/python,python3)
 DBT := $(if $(wildcard $(ROOT).venv/bin/dbt),$(ROOT).venv/bin/dbt,dbt)
 
-.PHONY: up down bi-up bi-down airflow-up airflow-down airflow-dag-test seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh semantic-build semantic-validate validate-scd2-seed
+.PHONY: up down bi-up bi-down airflow-up airflow-down airflow-dag-test seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh semantic-build semantic-validate analytics-bootstrap-bi validate-scd2-seed
 
 # dbt-core fails on Python 3.14+; ensure .venv uses 3.11–3.13 (recreate via scripts/bootstrap.sh).
 check-dbt-python:
@@ -64,6 +64,24 @@ semantic-validate:
 	set -a && source .env && set +a && \
 	$(PY) "$(ROOT)scripts/validate_semantic_artifacts.py"
 
+# Grants bi_business_readonly on marts + semantic, then creates login ANALYTICS_DB_USER_BI. Requires: make up, and usually semantic-build first.
+analytics-bootstrap-bi:
+	set -a && source "$(ROOT).env" && set +a && \
+	test -n "$$ANALYTICS_DB_USER_BI" && test -n "$$ANALYTICS_DB_PASSWORD_BI" || { echo "Set ANALYTICS_DB_USER_BI and ANALYTICS_DB_PASSWORD_BI in .env" >&2; exit 1; } && \
+	cd "$(ROOT)" && \
+	docker compose --env-file .env exec -T \
+	  -e "PGPASSWORD=$$ANALYTICS_DB_PASSWORD" \
+	  analytics_db \
+	  psql -U "$$ANALYTICS_DB_USER" -d "$$ANALYTICS_DB_DATABASE" -v ON_ERROR_STOP=1 \
+	  < bi/sql/metabase_business_permissions.sql && \
+	docker compose --env-file .env exec -T \
+	  -e "PGPASSWORD=$$ANALYTICS_DB_PASSWORD" \
+	  analytics_db \
+	  psql -U "$$ANALYTICS_DB_USER" -d "$$ANALYTICS_DB_DATABASE" -v ON_ERROR_STOP=1 \
+	  -v "metabase_bi_user=$$ANALYTICS_DB_USER_BI" \
+	  -v "metabase_bi_password=$$ANALYTICS_DB_PASSWORD_BI" \
+	  < bi/sql/bootstrap_metabase_business_user.sql
+
 docs: check-dbt-python
 	set -a && source .env && set +a && \
 	export DBT_PROFILES_DIR="$(ROOT)dbt_project" && \
@@ -74,10 +92,11 @@ lineage:
 		--manifest "$(ROOT)dbt_project/target/manifest.json" \
 		--output "$(ROOT)lineage/lineage.mmd"
 
-demo: up
-	@echo "Waiting for Postgres healthchecks..."
-	@sleep 8
-	$(MAKE) validate-contracts seed-data transform semantic-build semantic-validate test docs lineage
+# Demo target that includes all components: main stack, BI (Metabase), Airflow, and all validation/test/docs/lineage steps.
+demo: up bi-up airflow-up
+	@echo "Waiting for Postgres and other services healthchecks..."
+	@sleep 12
+	$(MAKE) seed-data transform validate-contracts semantic-build semantic-validate analytics-bootstrap-bi test docs lineage airflow-dag-test
 
 bootstrap:
 	bash "$(ROOT)scripts/bootstrap.sh"

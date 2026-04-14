@@ -1,5 +1,6 @@
--- Restrict business users to semantic curated artifacts only.
--- Run as a privileged role on analytics_db.
+-- Read-only role for BI tools (Metabase) on marts + semantic.
+-- Run as the warehouse owner role (same as ANALYTICS_DB_USER) so default
+-- privileges match objects created by dbt / semantic builders.
 
 -- 1) Create read-only role for business BI users.
 do $$
@@ -9,16 +10,25 @@ begin
     end if;
 end $$;
 
--- 2) Ensure role can connect and use semantic schema.
-grant connect on database analytics_db to bi_business_readonly;
+-- 2) Ensure role can connect and use marts + semantic schemas.
+do $grant$
+begin
+    execute format('grant connect on database %I to bi_business_readonly', current_database());
+end
+$grant$;
+
+create schema if not exists semantic;
+
+grant usage on schema marts to bi_business_readonly;
 grant usage on schema semantic to bi_business_readonly;
 
--- 3) Grant read on all existing semantic views/tables.
+-- 3) Grant read on all existing tables and views in marts and semantic.
+grant select on all tables in schema marts to bi_business_readonly;
 grant select on all tables in schema semantic to bi_business_readonly;
 
--- 4) Keep future semantic objects readable.
-alter default privileges in schema semantic
+-- 4) Keep future objects readable (objects created by the session role).
+alter default privileges in schema marts
 grant select on tables to bi_business_readonly;
 
--- 5) Optional hardening: explicitly deny marts schema.
-revoke all privileges on schema marts from bi_business_readonly;
+alter default privileges in schema semantic
+grant select on tables to bi_business_readonly;

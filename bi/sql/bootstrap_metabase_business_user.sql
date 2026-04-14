@@ -42,7 +42,8 @@ select format(
 \gexec
 
 select format(
-    'alter role %I in database analytics_db set search_path = semantic, public',
-    :'metabase_bi_user'
+    'alter role %I in database %I set search_path = semantic, marts, public',
+    :'metabase_bi_user',
+    current_database()
 )
 \gexec
