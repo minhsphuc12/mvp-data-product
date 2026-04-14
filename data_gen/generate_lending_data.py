@@ -21,6 +21,7 @@ from data_gen.shared import (
     NUM_REPAYMENTS,
     REPAYMENT_STATUSES,
     RNG_SEED,
+    SYNTHETIC_DATA_LOOKBACK_MONTHS,
     fake_email,
     fake_national_id,
     fake_phone,
@@ -50,7 +51,7 @@ def build_lending_dataset() -> Tuple[LendingDataset, List[Dict[str, str]], List[
     - phone_keys: phone, full_name for phone+name cohort (insurance national_id NULL)
     """
     rng = random.Random(RNG_SEED)
-    start, end = window_last_months(12)
+    start, end = window_last_months(SYNTHETIC_DATA_LOOKBACK_MONTHS)
 
     branches: List[Dict[str, Any]] = []
     for i in range(1, NUM_BRANCHES + 1):

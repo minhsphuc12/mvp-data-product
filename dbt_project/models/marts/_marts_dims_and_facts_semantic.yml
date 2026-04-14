@@ -1,0 +1,361 @@
+version: 2
+
+# MetricFlow entities: foreign entity names match the primary entity name on the target semantic model.
+# Physical SQL joins use the "Join (SQL)" lines in each semantic model description.
+
+semantic_models:
+  # --- Calendar (time spine) ---
+  - name: calendar_day
+    model: ref('dim_date')
+    description: >
+      Calendar day grain (dim_date). Primary entity calendar_day -> expr date_key.
+      Join (SQL) from facts to this model:
+      dim_date.date_key = fct_loan_disbursement.disbursement_date_key;
+      dim_date.date_key = fct_repayment.payment_date_key;
+      dim_date.date_key = fct_policy.coverage_start_date_key;
+      dim_date.date_key = fct_policy.coverage_end_date_key (same dim role as start; only start is a MetricFlow foreign entity);
+      dim_date.date_key = fct_claim.filed_date_key.
+      Join (SQL) from mart (month grain): mart_branch_monthly_performance.month_start_date = dim_date.month_start_date.
+    defaults:
+      agg_time_dimension: date_day
+    entities:
+      - name: calendar_day
+        type: primary
+        expr: date_key
+        description: Primary key date_key; facts use *date_key columns listed in semantic model description.
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+      - name: iso_day_of_week
+        type: categorical
+      - name: month_name
+        type: categorical
+      - name: year_number
+        type: categorical
+      - name: month_number
+        type: categorical
+      - name: year_month_label
+        type: categorical
+      - name: month_start_date
+        type: time
+        type_params:
+          time_granularity: month
+      - name: is_weekend
+        type: categorical
+    measures:
+      - name: calendar_row_count
+        description: Row count at calendar day grain
+        agg: count
+        expr: date_key
+
+  # --- SCD2 branch (row grain = branch_key / version) ---
+  - name: branch_dimension
+    model: ref('dim_branch')
+    description: >
+      Branch SCD2 (dim_branch). Primary entity branch -> expr branch_key (versioned surrogate).
+      Join (SQL) from facts: dim_branch.branch_key = fct_loan_disbursement.branch_key;
+      dim_branch.branch_key = fct_repayment.branch_key.
+      Join (SQL) from mart (natural key; mind SCD2): dim_branch.branch_id = mart_branch_monthly_performance.branch_id
+      (prefer dim_branch.is_current = true or as-of logic for a single branch version).
+    defaults:
+      agg_time_dimension: branch_valid_from
+    entities:
+      - name: branch
+        type: primary
+        expr: branch_key
+        description: Surrogate branch_key; join facts on branch_key, mart on branch_id (see semantic model description).
+    dimensions:
+      - name: branch_id
+        type: categorical
+      - name: branch_name
+        type: categorical
+      - name: city
+        type: categorical
+      - name: is_current
+        type: categorical
+      - name: version_number
+        type: categorical
+      - name: branch_valid_from
+        type: time
+        type_params:
+          time_granularity: day
+        expr: valid_from_ts
+    measures:
+      - name: branch_row_count
+        description: Row count at branch SCD2 grain
+        agg: count
+        expr: branch_key
+
+  # --- SCD2 customer (row grain = customer_key / version) ---
+  - name: customer_dimension
+    model: ref('dim_customer')
+    description: >
+      Customer SCD2 (dim_customer). Primary entity customer -> expr customer_key (versioned surrogate).
+      Join (SQL) from facts:
+      dim_customer.customer_key = fct_loan_disbursement.customer_key;
+      dim_customer.customer_key = fct_repayment.customer_key;
+      dim_customer.customer_key = fct_policy.customer_key;
+      dim_customer.customer_key = fct_claim.customer_key.
+    defaults:
+      agg_time_dimension: customer_valid_from
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_key
+        description: Surrogate customer_key; lending and insurance facts both resolve to this key in fct_* SQL.
+    dimensions:
+      - name: master_customer_id
+        type: categorical
+      - name: match_method
+        type: categorical
+      - name: primary_branch_id
+        type: categorical
+      - name: is_current
+        type: categorical
+      - name: customer_valid_from
+        type: time
+        type_params:
+          time_granularity: day
+        expr: valid_from_ts
+    measures:
+      - name: customer_row_count
+        description: Row count at customer SCD2 grain
+        agg: count
+        expr: customer_key
+
+  # --- Facts (transaction / event grain) ---
+  - name: loan_disbursement_events
+    model: ref('fct_loan_disbursement')
+    description: >
+      One row per loan disbursement (fct_loan_disbursement). Grain: loan_id.
+      Join (SQL) to dimensions:
+      fct_loan_disbursement.customer_key = dim_customer.customer_key;
+      fct_loan_disbursement.branch_key = dim_branch.branch_key;
+      fct_loan_disbursement.disbursement_date_key = dim_date.date_key.
+      Join (SQL) to repayments: fct_loan_disbursement.loan_id = fct_repayment.loan_id.
+    defaults:
+      agg_time_dimension: disbursement_date
+    entities:
+      - name: loan
+        type: primary
+        expr: loan_id
+        description: Primary grain loan_id; links to repayment_events.loan on loan_id.
+      - name: customer
+        type: foreign
+        expr: customer_key
+        description: FK to customer_dimension.customer via customer_key.
+      - name: branch
+        type: foreign
+        expr: branch_key
+        description: FK to branch_dimension.branch via branch_key.
+      - name: calendar_day
+        type: foreign
+        expr: disbursement_date_key
+        description: FK to calendar_day.calendar_day via disbursement_date_key = dim_date.date_key.
+    dimensions:
+      - name: disbursement_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: disbursement_date
+      - name: loan_status
+        type: categorical
+    measures:
+      - name: fct_loan_disbursement_amount
+        description: Principal disbursed (sum at loan grain)
+        agg: sum
+        expr: loan_disbursement_amount
+
+  - name: repayment_events
+    model: ref('fct_repayment')
+    description: >
+      One row per repayment (fct_repayment). Grain: repayment_id.
+      Join (SQL) to dimensions:
+      fct_repayment.customer_key = dim_customer.customer_key;
+      fct_repayment.branch_key = dim_branch.branch_key;
+      fct_repayment.payment_date_key = dim_date.date_key.
+      Join (SQL) to disbursements: fct_repayment.loan_id = fct_loan_disbursement.loan_id.
+    defaults:
+      agg_time_dimension: payment_date
+    entities:
+      - name: repayment
+        type: primary
+        expr: repayment_id
+        description: Primary grain repayment_id.
+      - name: loan
+        type: foreign
+        expr: loan_id
+        description: FK to loan_disbursement_events.loan via loan_id.
+      - name: customer
+        type: foreign
+        expr: customer_key
+        description: FK to customer_dimension.customer via customer_key.
+      - name: branch
+        type: foreign
+        expr: branch_key
+        description: FK to branch_dimension.branch via branch_key.
+      - name: calendar_day
+        type: foreign
+        expr: payment_date_key
+        description: FK to calendar_day.calendar_day via payment_date_key = dim_date.date_key.
+    dimensions:
+      - name: payment_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: paid_at
+      - name: repayment_status
+        type: categorical
+    measures:
+      - name: fct_repayment_amount
+        description: Repayment amount (sum at repayment-event grain)
+        agg: sum
+        expr: repayment_amount
+
+  - name: insurance_policy_events
+    model: ref('fct_policy')
+    description: >
+      One row per policy (fct_policy). Grain: policy_id.
+      Join (SQL) to customer: fct_policy.customer_key = dim_customer.customer_key.
+      Join (SQL) to calendar on start: fct_policy.coverage_start_date_key = dim_date.date_key.
+      Join (SQL) to calendar on end: fct_policy.coverage_end_date_key = dim_date.date_key (no second MetricFlow entity).
+      Join (SQL) to claims: fct_policy.policy_id = fct_claim.policy_id.
+    defaults:
+      agg_time_dimension: coverage_start_date
+    entities:
+      - name: policy
+        type: primary
+        expr: policy_id
+        description: Primary grain policy_id; links to insurance_claim_events.policy on policy_id.
+      - name: customer
+        type: foreign
+        expr: customer_key
+        description: FK to customer_dimension.customer via customer_key.
+      - name: calendar_day
+        type: foreign
+        expr: coverage_start_date_key
+        description: FK to calendar_day.calendar_day via coverage_start_date_key = dim_date.date_key (start role only).
+    dimensions:
+      - name: coverage_start_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: coverage_start_date
+      - name: coverage_end_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: coverage_end_date
+      - name: product_type
+        type: categorical
+      - name: policy_status
+        type: categorical
+    measures:
+      - name: fct_premium_amount
+        description: Premium amount (sum at policy grain)
+        agg: sum
+        expr: premium_amount
+
+  - name: insurance_claim_events
+    model: ref('fct_claim')
+    description: >
+      One row per claim (fct_claim). Grain: claim_id.
+      Join (SQL) to policy: fct_claim.policy_id = fct_policy.policy_id.
+      Join (SQL) to customer: fct_claim.customer_key = dim_customer.customer_key.
+      Join (SQL) to calendar: fct_claim.filed_date_key = dim_date.date_key.
+    defaults:
+      agg_time_dimension: claim_filed_date
+    entities:
+      - name: claim
+        type: primary
+        expr: claim_id
+        description: Primary grain claim_id.
+      - name: policy
+        type: foreign
+        expr: policy_id
+        description: FK to insurance_policy_events.policy via policy_id.
+      - name: customer
+        type: foreign
+        expr: customer_key
+        description: FK to customer_dimension.customer via customer_key.
+      - name: calendar_day
+        type: foreign
+        expr: filed_date_key
+        description: FK to calendar_day.calendar_day via filed_date_key = dim_date.date_key.
+    dimensions:
+      - name: claim_filed_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: filed_at
+      - name: claim_status
+        type: categorical
+    measures:
+      - name: fct_claim_amount
+        description: Claim amount (sum at claim grain)
+        agg: sum
+        expr: claim_amount
+
+metrics:
+  # Calendar / dimensions (optional usage)
+  - name: calendar_rows
+    label: Calendar rows
+    type: simple
+    type_params:
+      measure: calendar_row_count
+    description: Count of calendar dimension rows in the selected slice
+
+  - name: branch_dimension_rows
+    label: Branch dimension rows
+    type: simple
+    type_params:
+      measure: branch_row_count
+    description: Count of branch SCD2 rows in the selected slice
+
+  - name: customer_dimension_rows
+    label: Customer dimension rows
+    type: simple
+    type_params:
+      measure: customer_row_count
+    description: Count of customer SCD2 rows in the selected slice
+
+  # Fact-grain totals (names distinct from mart_branch_monthly_performance metrics)
+  - name: fct_total_loan_disbursement_amount
+    label: Total loan disbursement (fact grain)
+    type: simple
+    type_params:
+      measure: fct_loan_disbursement_amount
+    description: Sum of disbursement amounts at loan disbursement grain
+
+  - name: fct_total_repayment_amount
+    label: Total repayment amount (fact grain)
+    type: simple
+    type_params:
+      measure: fct_repayment_amount
+    description: Sum of repayment amounts at repayment-event grain
+
+  - name: fct_total_premium_amount
+    label: Total premium amount (fact grain)
+    type: simple
+    type_params:
+      measure: fct_premium_amount
+    description: Sum of premium amounts at policy grain
+
+  - name: fct_total_claim_amount
+    label: Total claim amount (fact grain)
+    type: simple
+    type_params:
+      measure: fct_claim_amount
+    description: Sum of claim amounts at claim grain
+
+  - name: fct_repayment_to_disbursement_ratio
+    label: Repayment to disbursement ratio (fact grain)
+    type: derived
+    type_params:
+      expr: fct_total_repayment_amount / nullif(fct_total_loan_disbursement_amount, 0)
+      metrics:
+        - name: fct_total_repayment_amount
+        - name: fct_total_loan_disbursement_amount
+    description: Ratio of fact-level repayment total to disbursement total in the selected slice

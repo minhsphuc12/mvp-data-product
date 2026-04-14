@@ -1,8 +1,11 @@
 # Local finance data platform demo
 
-Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with staging landing layer, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. No CDC, no orchestrator, no cloud.
+Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with staging landing layer, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. **Apache Airflow** is optional for scheduling the same path end-to-end. No CDC, no cloud.
 
 ## Changelog
+
+### 2026-04-13
+- Added optional **Apache Airflow** (Compose profile `airflow`) with a daily-style DAG: operational sources → staging landing → dbt run/test; loader honors `LOAD_DATA_AS_OF` for a logical run date.
 
 ### 2026-04-10
 - Implemented SCD2 dimensions for customer and branch with point-in-time fact lookups to keep historical analysis consistent.
@@ -56,9 +59,12 @@ flowchart TB
     MRT[marts]
   end
   Py[Python generate and load]
+  AF[Airflow optional]
   DBT[dbt-core]
   S1 --> Py
   S2 --> Py
+  AF -.->|schedule| Py
+  AF -.->|schedule| DBT
   Py --> LND
   Py --> INS
   LND --> DBT
@@ -101,6 +107,19 @@ make validate-contracts  # align contracts/schemas/*.yaml with dbt sources.yml
 make docs        # dbt docs generate (artifacts under dbt_project/target/)
 make lineage     # lineage/lineage.mmd + lineage/lineage.md
 ```
+
+### Apache Airflow (optional orchestration)
+
+Requires `make up` and a bootstrapped repo (`dbt_project/profiles.yml` on the host so the bind-mounted project works).
+
+```bash
+make airflow-up                 # metadata DB + scheduler + UI (profile airflow)
+# Open http://localhost:${AIRFLOW_WEBSERVER_PORT:-8080} — login admin / admin (see `.env.example`)
+make airflow-dag-test           # one full DAG run: load_data (logical date) → SCD2 check → dbt run/test
+make airflow-down
+```
+
+The DAG [`airflow/dags/finance_demo_daily.py`](airflow/dags/finance_demo_daily.py) sets `LOAD_DATA_AS_OF` to the Airflow logical date (`{{ ds }}`) so each run mimics a **business-day** load into staging. More detail: [orchestration/README.md](orchestration/README.md).
 
 One-shot (starts Docker, waits briefly, then seed + dbt + tests + docs + lineage):
 
@@ -219,7 +238,7 @@ For reproducible BI queries aligned to semantic formulas, use:
 
 ## Tradeoffs and next steps
 
-- **Default reload:** batch via `make seed-data`; optional **Prefect** flow in `orchestration/refresh_flow.py` (see `requirements-orchestration.txt`).
+- **Default reload:** batch via `make seed-data`; optional **Airflow** (`make airflow-up`, DAG under `airflow/dags/`) or **Prefect** (`orchestration/refresh_flow.py`, `requirements-orchestration.txt`).
 - **`stg_lending_loans` is incremental** (merge on `loan_id`, watermark `loaded_at`). First-time or after model changes: `dbt run --select stg_lending_loans --full-refresh`.
 - **Source Postgres** runs with `wal_level=logical` for future CDC; see [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md).
 - **Identity rules are intentionally simple:** no probabilistic matching, no manual overrides table.
@@ -229,11 +248,12 @@ For reproducible BI queries aligned to semantic formulas, use:
 ## Ports (default `.env.example`)
 
 
-| Service      | Host port |
-| ------------ | --------- |
-| source_db_1  | 5433      |
-| source_db_2  | 5434      |
-| analytics_db | 5435      |
+| Service | Host port |
+| ------------- | --------- |
+| source_db_1   | 5433      |
+| source_db_2   | 5434      |
+| analytics_db  | 5435      |
+| Airflow UI    | 8080 (override `AIRFLOW_WEBSERVER_PORT`) |
 
 
 ## License

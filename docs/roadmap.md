@@ -17,7 +17,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | Quality and light contracts | dbt tests on sources and marts (`unique`, `not_null`, `relationships`, `accepted_values`); exposures for a conceptual dashboard. |
 | Observability and docs | dbt docs, Mermaid lineage export under `lineage/`; design docs in `docs/`. |
 
-**Known limitations (product-facing):** no orchestrator in the original minimal stack; no SCD2; simple identity rules; insurance branch KPIs depend on resolution to lending; freshness is “as of last seed + transform.”
+**Known limitations (product-facing):** the baseline path is still manual `make` targets; **optional** local orchestration exists (Airflow Compose profile, Prefect flow). SCD2 applies to key dimensions (`dim_customer`, `dim_branch`); identity rules remain simple; insurance branch KPIs depend on resolution to lending; freshness is “as of last successful load + transform” unless Airflow (or another scheduler) is enabled.
 
 ---
 
@@ -31,6 +31,7 @@ Related docs: [data-product-design-overview.md](data-product-design-overview.md)
 | Postgres `wal_level=logical` on source DBs (Compose) | Done | Enables logical decoding for future Debezium or native replication. |
 | Example incremental staging on `staging.lending_loans` | Done | `stg_lending_loans` materialized as incremental table with `loaded_at` watermark (see model config). |
 | Debezium / Kafka / full streaming stack | Planned | Optional extension; not bundled by default. |
+| Orchestrated refresh (Airflow) | Done (optional) | Compose profile `airflow`; DAG under `airflow/dags/`; `make airflow-up` / `make airflow-dag-test`; see `orchestration/README.md`. |
 | Orchestrated refresh (Prefect) | Done (optional) | `orchestration/refresh_flow.py` + `requirements-orchestration.txt`; run locally or wire to a Prefect server. |
 
 ---
@@ -88,4 +89,5 @@ flowchart LR
 | ------ | ------------------ |
 | Validate staging landing contracts | `make validate-contracts` |
 | Start Metabase | `docker compose --profile bi up -d` (see `.env.example` for `METABASE_PORT`) |
+| Airflow (after `make up` and `bash scripts/bootstrap.sh` for `profiles.yml`) | `make airflow-up`; UI and `make airflow-dag-test` — see `orchestration/README.md` |
 | Prefect refresh flow (after `pip install -r requirements-orchestration.txt`) | `python orchestration/refresh_flow.py` or register with Prefect as needed |

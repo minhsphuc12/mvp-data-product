@@ -1,3 +1,46 @@
+x-airflow-common: &airflow-common
+  profiles: ["airflow"]
+  build:
+    context: ./airflow
+    dockerfile: Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_postgres:5432/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    PYTHONPATH: /opt/airflow/workspace
+    # Inside Compose, DBs listen on 5432; service DNS names replace localhost from a host .env.
+    SOURCE_DB_1_HOST: source_db_1
+    SOURCE_DB_1_PORT: "5432"
+    SOURCE_DB_1_USER: ${SOURCE_DB_1_USER:-demo}
+    SOURCE_DB_1_PASSWORD: ${SOURCE_DB_1_PASSWORD:-demo}
+    SOURCE_DB_1_DATABASE: ${SOURCE_DB_1_DATABASE:-lending_db}
+    SOURCE_DB_2_HOST: source_db_2
+    SOURCE_DB_2_PORT: "5432"
+    SOURCE_DB_2_USER: ${SOURCE_DB_2_USER:-demo}
+    SOURCE_DB_2_PASSWORD: ${SOURCE_DB_2_PASSWORD:-demo}
+    SOURCE_DB_2_DATABASE: ${SOURCE_DB_2_DATABASE:-insurance_db}
+    ANALYTICS_DB_HOST: analytics_db
+    ANALYTICS_DB_PORT: "5432"
+    ANALYTICS_DB_USER: ${ANALYTICS_DB_USER:-demo}
+    ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:-demo}
+    ANALYTICS_DB_DATABASE: ${ANALYTICS_DB_DATABASE:-analytics_db}
+    ANALYTICS_DATABASE_URL: postgresql://${ANALYTICS_DB_USER:-demo}:${ANALYTICS_DB_PASSWORD:-demo}@analytics_db:5432/${ANALYTICS_DB_DATABASE:-analytics_db}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./:/opt/airflow/workspace
+  depends_on:
+    airflow_postgres:
+      condition: service_healthy
+    source_db_1:
+      condition: service_healthy
+    source_db_2:
+      condition: service_healthy
+    analytics_db:
+      condition: service_healthy
+  networks:
+    - finance_demo
+
 services:
   source_db_1:
     image: postgres:16-alpine
@@ -58,6 +101,65 @@ services:
     networks:
       - finance_demo
 
+  airflow_postgres:
+    profiles: ["airflow"]
+    image: postgres:16-alpine
+    container_name: finance_demo_airflow_meta
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_meta_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - finance_demo
+
+  airflow_init:
+    <<: *airflow-common
+    container_name: finance_demo_airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -cx
+      - |
+        airflow db migrate
+        airflow users create \
+          --role Admin \
+          --username admin \
+          --email admin@example.com \
+          --firstname Admin \
+          --lastname User \
+          --password admin || true
+    restart: "no"
+
+  airflow_scheduler:
+    <<: *airflow-common
+    container_name: finance_demo_airflow_scheduler
+    command: scheduler
+    depends_on:
+      airflow_init:
+        condition: service_completed_successfully
+
+  airflow_webserver:
+    <<: *airflow-common
+    container_name: finance_demo_airflow_webserver
+    command: webserver
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      airflow_init:
+        condition: service_completed_successfully
+
   metabase:
     profiles: ["bi"]
     image: metabase/metabase:latest
@@ -76,6 +178,7 @@ services:
 
 volumes:
   metabase_data:
+  airflow_meta_data:
 
 networks:
   finance_demo:

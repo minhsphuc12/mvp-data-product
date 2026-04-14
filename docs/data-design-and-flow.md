@@ -54,6 +54,8 @@ Each table carries `loaded_at` for auditability and incremental logic.
 
 ## 4. End-to-end flow
 
+Logical order: **operational DBs → staging landing → dbt staging models → intermediate → marts**. The default implementation uses a Python batch job (`data_gen.load_data`) to refresh sources and copy into landing tables; **optional** [Apache Airflow](../airflow/dags/finance_demo_daily.py) (Compose profile `airflow`) runs the same sequence on a schedule with a logical run date via `LOAD_DATA_AS_OF`.
+
 ```mermaid
 flowchart TB
   subgraph ops [OperationalDBs]
@@ -66,8 +68,11 @@ flowchart TB
     intm[intermediate_models]
     marts[mart_models]
   end
+  AF[Airflow optional]
   L -->|batch_pull| land
   I -->|batch_pull| land
+  AF -.->|schedule| land
+  AF -.->|dbt| stg
   land --> stg
   stg --> intm
   intm --> marts

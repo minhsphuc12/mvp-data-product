@@ -4,8 +4,15 @@ semantic_models:
   - name: branch_monthly_performance
     model: ref('mart_branch_monthly_performance')
     description: >
-      Branch × calendar month grain. Insurance-derived measures only include customers
-      resolved to lending with a non-null primary_branch_id (see data product doc).
+      Branch × calendar month grain (mart_branch_monthly_performance). Primary entity branch_month
+      -> expr branch_month_sk (surrogate for this mart grain only).
+      Join (SQL) to branch dimension (natural key; mind SCD2):
+      mart_branch_monthly_performance.branch_id = dim_branch.branch_id
+      (prefer dim_branch.is_current = true or as-of month for one branch version).
+      Join (SQL) to calendar (month grain):
+      mart_branch_monthly_performance.month_start_date = dim_date.month_start_date.
+      This mart is rolled up from lending/insurance facts; it does not declare foreign-key entities
+      to dim_customer or fct_* — use loan_disbursement_events, repayment_events, insurance_* semantic models for those joins.
     defaults:
       agg_time_dimension: month_start_date
     entities:

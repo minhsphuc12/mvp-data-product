@@ -19,6 +19,7 @@ from data_gen.shared import (
     POLICY_STATUSES,
     PRODUCT_TYPES,
     RNG_SEED,
+    SYNTHETIC_DATA_LOOKBACK_MONTHS,
     fake_email,
     fake_national_id,
     fake_phone,
@@ -48,7 +49,7 @@ def build_insurance_dataset(
     Build 2000 policy holders: same 900 exact + 200 phone/name + 900 insurance-only.
     """
     rng = random.Random(RNG_SEED + 7)
-    start, end = window_last_months(12)
+    start, end = window_last_months(SYNTHETIC_DATA_LOOKBACK_MONTHS)
 
     policy_holders: List[Dict[str, Any]] = []
     holder_id = 1

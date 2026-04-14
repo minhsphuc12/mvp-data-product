@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Sequence
 
 import psycopg2
@@ -42,7 +42,23 @@ def _connect_from_env(prefix: str):
 
 
 def _utc_loaded_at() -> datetime:
-    return datetime.now(timezone.utc)
+    """
+    Default: wall-clock UTC now.
+    If LOAD_DATA_AS_OF is set (YYYY-MM-DD or ISO datetime), use that instant so
+    orchestrators can mimic a logical business date (e.g. Airflow {{ ds }}).
+    """
+    raw = os.environ.get("LOAD_DATA_AS_OF", "").strip()
+    if not raw:
+        return datetime.now(timezone.utc)
+    try:
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            d = date.fromisoformat(raw)
+            return datetime(d.year, d.month, d.day, 23, 59, 59, tzinfo=timezone.utc)
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Invalid LOAD_DATA_AS_OF={raw!r}; use YYYY-MM-DD or ISO-8601 datetime."
+        ) from exc
 
 
 def _scd2_batch_timestamps(base_ts: datetime) -> List[datetime]:

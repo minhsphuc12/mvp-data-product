@@ -27,6 +27,9 @@ COHORT_INSURANCE_ONLY: Final[int] = 900
 
 RNG_SEED: Final[int] = 42
 
+# Time span for random timestamps (applications, loans, policies, claims, etc.)
+SYNTHETIC_DATA_LOOKBACK_MONTHS: Final[int] = 24  # two years
+
 FIRST_NAMES: Final[Tuple[str, ...]] = (
     "An", "Binh", "Chi", "Dung", "Giang", "Hoa", "Hung", "Lan", "Linh", "Long",
     "Mai", "Minh", "Nam", "Ngoc", "Phong", "Quan", "Son", "Tam", "Thao", "Tuan",

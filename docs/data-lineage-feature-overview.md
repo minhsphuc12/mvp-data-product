@@ -58,8 +58,10 @@ Preview Mermaid in any compatible viewer, or paste `lineage.mmd` into [Mermaid L
 ## 5. What this stack does not provide
 
 - Automated column-level lineage into BI tools.
-- Cross-system lineage (e.g., Airflow task → dbt model) without adding orchestration.
+- **Automatic** unified graphs (e.g., catalog UI linking Airflow tasks to dbt models) without deploying catalog ingestion for both systems.
 - Persistent catalog with RBAC, sampling, or PII classification.
+
+**Note:** Optional Airflow ([`airflow/dags/finance_demo_daily.py`](../airflow/dags/finance_demo_daily.py)) makes the batch steps explicit (`ingest_sources_to_staging` → landing tables in `sources.yml` → `dbt_run_and_test`); use that as operational context until you connect a catalog to Airflow and dbt metadata.
 
 ## 6. Extension patterns
 

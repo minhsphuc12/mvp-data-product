@@ -4,7 +4,7 @@ export PYTHONPATH := $(ROOT)
 PY := $(if $(wildcard $(ROOT).venv/bin/python),$(ROOT).venv/bin/python,python3)
 DBT := $(if $(wildcard $(ROOT).venv/bin/dbt),$(ROOT).venv/bin/dbt,dbt)
 
-.PHONY: up down bi-up bi-down seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh semantic-build semantic-validate validate-scd2-seed
+.PHONY: up down bi-up bi-down airflow-up airflow-down airflow-dag-test seed-data transform test docs lineage demo bootstrap check-dbt-python validate-contracts flow-refresh semantic-build semantic-validate validate-scd2-seed
 
 # dbt-core fails on Python 3.14+; ensure .venv uses 3.11–3.13 (recreate via scripts/bootstrap.sh).
 check-dbt-python:
@@ -21,6 +21,17 @@ bi-up:
 
 bi-down:
 	docker compose --env-file .env --profile bi stop metabase
+
+# Apache Airflow (profile airflow).
+airflow-up:
+	docker compose --env-file .env --profile airflow up -d --build
+
+airflow-down:
+	docker compose --env-file .env --profile airflow down
+
+# One inline DAG run (loads data for logical date, validates SCD2 seed, dbt run + test). Requires: make up && make airflow-up
+airflow-dag-test:
+	docker compose --env-file .env --profile airflow exec airflow_scheduler airflow dags test finance_demo_daily 2026-04-10
 
 seed-data:
 	set -a && source .env && set +a && $(PY) -m data_gen.load_data && $(PY) "$(ROOT)scripts/validate_scd2_seed_history.py"

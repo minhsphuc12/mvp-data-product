@@ -21,8 +21,9 @@ The default demo uses **batch** Python pulls into `staging` landing tables. This
 
 ## Orchestration
 
+- **Apache Airflow (optional in this repo):** Compose profile `airflow` runs a local metadata database, scheduler, and web UI. DAG [`airflow/dags/finance_demo_daily.py`](../airflow/dags/finance_demo_daily.py) chains: Python loader (sources → `analytics_db.staging`) → SCD2 seed validation → `dbt run` and `dbt test`. Use `make airflow-up` / `make airflow-dag-test`; details in [orchestration/README.md](../orchestration/README.md) and [technical-design.md](technical-design.md).
 - **Prefect (optional in this repo):** [orchestration/refresh_flow.py](../orchestration/refresh_flow.py) runs `make seed-data` and `make transform`. Install with `pip install -r requirements-orchestration.txt`.
-- **Production:** Airflow, Dagster, or cloud schedulers trigger the same steps against a real warehouse.
+- **Production:** Dagster, managed Airflow, or cloud schedulers trigger the same steps against a real warehouse.
 
 ## Operational checks
 

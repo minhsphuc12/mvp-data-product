@@ -58,7 +58,7 @@ This document frames the demo as a **data product**: who it serves, what they ge
 
 ## 5. SLAs and freshness (demo)
 
-- **Freshness:** “As of last `make seed-data` + `make transform`.” There is no scheduler; reload is manual.
+- **Freshness:** “As of last successful load + dbt run.” By default that is manual (`make seed-data` + `make transform`). **Optional:** Apache Airflow (`make airflow-up`, DAG `finance_demo_daily`) runs the same path on a daily schedule with a logical business date; see [technical-design.md](technical-design.md) and [orchestration/README.md](../orchestration/README.md).
 - **Availability:** Local Docker only; no HA or backup story in-repo.
 
 ## 6. Data contracts (implicit)
@@ -88,7 +88,7 @@ Synthetic data only; no real PII. National IDs and phones are random numeric pat
 | Modeling    | SCD2 `dim_customer`/`dim_branch`, point-in-time fact joins          | Implemented                 |
 | Metrics     | dbt Semantic Layer on `mart_branch_monthly_performance`             | Implemented                 |
 | Dictionary  | Business glossary (`docs/glossary.md`)                              | Implemented                 |
-| Operations  | CI dbt test, explicit raw contracts, Prefect example flow          | Partially implemented       |
+| Operations  | CI dbt test, explicit raw contracts, optional Airflow + Prefect orchestration | Partially implemented (Airflow + Prefect optional) |
 | Realtime    | `wal_level=logical`, incremental staging example, CDC doc           | Foundations (see roadmap)   |
 | Governance  | Catalog options (`docs/catalog.md`), lineage export to wiki         | Partially documented        |
 
