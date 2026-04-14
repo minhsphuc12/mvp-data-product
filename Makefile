@@ -93,10 +93,15 @@ lineage:
 		--output "$(ROOT)lineage/lineage.mmd"
 
 # Demo target that includes all components: main stack, BI (Metabase), Airflow, and all validation/test/docs/lineage steps.
-demo: up bi-up airflow-up
+#bi-up
+#airflow-up
+demo: up 
 	@echo "Waiting for Postgres and other services healthchecks..."
-	@sleep 12
-	$(MAKE) seed-data transform validate-contracts semantic-build semantic-validate analytics-bootstrap-bi test docs lineage airflow-dag-test
+	@sleep 2
+	$(MAKE) seed-data transform validate-contracts test docs lineage 
+	$(MAKE) semantic-build semantic-validate analytics-bootstrap-bi
+
+#$(MAKE) airflow-dag-test
 
 bootstrap:
 	bash "$(ROOT)scripts/bootstrap.sh"

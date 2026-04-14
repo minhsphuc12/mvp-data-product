@@ -12,3 +12,5 @@ dbt_project/profiles.yml
 .DS_Store
 ./.DS_Store
 */.DS_Store
+lineage/lineage.md
+lineage/lineage.mmd
