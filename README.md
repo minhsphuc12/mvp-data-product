@@ -58,18 +58,13 @@ flowchart TB
     INT[intermediate]
     MRT[marts]
   end
-  Py[Python generate and load]
   AF[Airflow optional]
   DBT[dbt-core]
-  Py --> S1
-  Py --> S2
-  AF -.->|schedule| Py
+  S1 --> LND
+  S2 --> INS
   AF -.->|schedule| DBT
-  Py --> LND
-  Py --> INS
-  LND --> DBT
-  INS --> DBT
-  DBT --> STG
+  LND --> STG
+  INS --> STG
   STG --> INT
   INT --> MRT
 ```
