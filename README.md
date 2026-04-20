@@ -1,11 +1,11 @@
 # Local finance data platform demo
 
-Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with staging landing layer, **Python** synthetic generation/load, and **dbt** for staging → intermediate → marts. **Apache Airflow** is optional for scheduling the same path end-to-end. No CDC, no cloud.
+Minimal, transparent stack: two operational Postgres databases (lending + insurance), one analytics Postgres with a staging landing layer, **Python** synthetic generation/load into source databases, and **dbt** for staging → intermediate → marts. **Apache Airflow** is optional for scheduling the same path end-to-end. No CDC, no cloud.
 
 ## Changelog
 
 ### 2026-04-13
-- Added optional **Apache Airflow** (Compose profile `airflow`) with a daily-style DAG: operational sources → staging landing → dbt run/test; loader honors `LOAD_DATA_AS_OF` for a logical run date.
+- Added optional **Apache Airflow** (Compose profile `airflow`) with a daily-style DAG: generate/load into operational sources → ingest to staging landing → dbt run/test; loader honors `LOAD_DATA_AS_OF` for a logical run date.
 
 ### 2026-04-10
 - Implemented SCD2 dimensions for customer and branch with point-in-time fact lookups to keep historical analysis consistent.
@@ -61,8 +61,8 @@ flowchart TB
   Py[Python generate and load]
   AF[Airflow optional]
   DBT[dbt-core]
-  S1 --> Py
-  S2 --> Py
+  Py --> S1
+  Py --> S2
   AF -.->|schedule| Py
   AF -.->|schedule| DBT
   Py --> LND
@@ -78,7 +78,7 @@ flowchart TB
 
 ### Why this is transparent
 
-- **Explicit boundaries:** operational schemas stay isolated; analytics only consumes staging landing tables you can inspect with SQL.
+- **Explicit boundaries:** synthetic data is generated into operational source schemas; analytics consumes staging landing tables populated from those sources and inspectable with SQL.
 - **dbt as documentation:** `sources.yml` declares physical tables; each model is a named step with tests.
 - **Lineage:** `dbt docs generate` produces a DAG; `lineage/render_lineage.py` exports a Mermaid graph from `target/manifest.json`.
 
@@ -97,7 +97,7 @@ bash scripts/bootstrap.sh
 source .venv/bin/activate
 
 make up          # start three Postgres containers
-make seed-data   # synthetic data -> sources + direct pull into analytics_db.staging
+make seed-data   # generate/load synthetic data into source_db_1 and source_db_2
 make validate-scd2-seed  # verify time-varying snapshots for SCD2 demo
 make transform   # dbt run
 make semantic-build     # build curated semantic views under schema semantic
@@ -119,7 +119,7 @@ make airflow-dag-test           # one full DAG run: load_data (logical date) →
 make airflow-down
 ```
 
-The DAG [`airflow/dags/finance_demo_daily.py`](airflow/dags/finance_demo_daily.py) sets `LOAD_DATA_AS_OF` to the Airflow logical date (`{{ ds }}`) so each run mimics a **business-day** load into staging. More detail: [orchestration/README.md](orchestration/README.md).
+The DAG [`airflow/dags/finance_demo_daily.py`](airflow/dags/finance_demo_daily.py) sets `LOAD_DATA_AS_OF` to the Airflow logical date (`{{ ds }}`) so each run mimics a **business-day** source load before analytics ingestion. More detail: [orchestration/README.md](orchestration/README.md).
 
 One-shot (starts Docker, waits briefly, then seed + dbt + tests + docs + lineage):
 
@@ -132,7 +132,7 @@ make demo
 ## Source → mart flow
 
 
-| Source (operational + staging landing) | Staging                         | Intermediate                                           | Marts                             |
+| Source (operational)                   | Staging                         | Intermediate                                           | Marts                             |
 | --------------------------------- | ------------------------------- | ------------------------------------------------------ | --------------------------------- |
 | `staging.lending_branches`            | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
 | `staging.lending_customers`           | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
@@ -149,7 +149,7 @@ make demo
 ## Data model notes
 
 - **Grains:** `fct_loan_disbursement` = one row per loan; `fct_repayment` = one row per repayment; `fct_policy` = one row per policy; `fct_claim` = one row per claim; `mart_branch_monthly_performance` = `branch_id` × `month_start_date`.
-- **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (from staging landing `loaded_at`).
+- **Auditing:** Staging carries `record_source`, `source_system`, and `loaded_at` (ingestion timestamp from source to staging).
 - `dim_customer` and `dim_branch` are modeled as SCD2 with `valid_from_ts`, `valid_to_ts`, `is_current`, `version_number`.
 - Facts resolve dimension keys using point-in-time joins on event timestamps.
 
