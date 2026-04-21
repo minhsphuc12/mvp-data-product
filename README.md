@@ -5,42 +5,48 @@ Minimal, transparent stack: two operational Postgres databases (lending + insura
 ## Changelog
 
 ### 2026-04-13
+
 - Added optional **Apache Airflow** (Compose profile `airflow`) with a daily-style DAG: generate/load into operational sources → ingest to staging landing → dbt run/test; loader honors `LOAD_DATA_AS_OF` for a logical run date.
 
 ### 2026-04-10
+
 - Implemented SCD2 dimensions for customer and branch with point-in-time fact lookups to keep historical analysis consistent.
 - Added deterministic multi-batch synthetic snapshots and validation so the demo shows real attribute changes over time.
 - Strengthened BI consumption with semantic serving artifacts and business access controls.
 
 ### 2026-04-09
+
 - Delivered runnable BI setup and semantic alignment flow so report numbers reconcile with modeled metrics.
 - Expanded branch-month semantic metrics and polished supporting BI documentation/assets.
 
 ### 2026-04-08
+
 - Added semantic model foundations, raw schema contracts, and CI-oriented data quality checks.
 - Improved platform operations with CDC-ready configuration and optional BI/orchestration capabilities.
 - Extended documentation and lineage coverage, including raw-source visibility.
 
 ### 2026-04-07
+
 - Improved repository hygiene and refreshed local setup/project documentation.
 
 ### 2026-04-04
+
 - Initialized the MVP data product with synthetic data generation, dbt transformations, and baseline documentation.
 
 ## Documentation
 
 
-| Document                                                                       | Description                                                    |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| [docs/technical-design.md](docs/technical-design.md)                           | Components, topology, configuration, boundaries                |
-| [docs/data-design-and-flow.md](docs/data-design-and-flow.md)                   | Entities, ER-style overview, layers, identity rules, data flow |
-| [docs/data-product-design-overview.md](docs/data-product-design-overview.md)   | Mart KPIs, audiences, limitations, roadmap                     |
-| [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md) | dbt docs, Mermaid export, extensions                           |
-| [docs/roadmap.md](docs/roadmap.md)                                             | Done vs planned: realtime, metrics/dictionary, data contracts  |
-| [docs/glossary.md](docs/glossary.md)                                           | Business terms and KPI plain-language definitions               |
-| [docs/bi-setup-and-semantic-alignment.md](docs/bi-setup-and-semantic-alignment.md) | Local BI runbook and semantic-to-SQL KPI mapping            |
-| [docs/catalog.md](docs/catalog.md)                                             | Optional enterprise catalog tools (DataHub, OpenMetadata, etc.)   |
-| [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md)                           | CDC, streaming patterns, incremental staging notes              |
+| Document                                                                           | Description                                                     |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [docs/technical-design.md](docs/technical-design.md)                               | Components, topology, configuration, boundaries                 |
+| [docs/data-design-and-flow.md](docs/data-design-and-flow.md)                       | Entities, ER-style overview, layers, identity rules, data flow  |
+| [docs/data-product-design-overview.md](docs/data-product-design-overview.md)       | Mart KPIs, audiences, limitations, roadmap                      |
+| [docs/data-lineage-feature-overview.md](docs/data-lineage-feature-overview.md)     | dbt docs, Mermaid export, extensions                            |
+| [docs/roadmap.md](docs/roadmap.md)                                                 | Done vs planned: realtime, metrics/dictionary, data contracts   |
+| [docs/glossary.md](docs/glossary.md)                                               | Business terms and KPI plain-language definitions               |
+| [docs/bi-setup-and-semantic-alignment.md](docs/bi-setup-and-semantic-alignment.md) | Local BI runbook and semantic-to-SQL KPI mapping                |
+| [docs/catalog.md](docs/catalog.md)                                                 | Optional enterprise catalog tools (DataHub, OpenMetadata, etc.) |
+| [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md)                               | CDC, streaming patterns, incremental staging notes              |
 
 
 ## Architecture
@@ -54,7 +60,6 @@ flowchart TB
   subgraph wh [analytics_db]
     LND[staging.lending_*]
     INS[staging.insurance_*]
-    STG[stg_*]
     INT[intermediate]
     MRT[marts]
   end
@@ -63,9 +68,8 @@ flowchart TB
   S1 --> LND
   S2 --> INS
   AF -.->|schedule| DBT
-  LND --> STG
-  INS --> STG
-  STG --> INT
+  LND --> INT
+  INS --> INT
   INT --> MRT
 ```
 
@@ -114,7 +118,7 @@ make airflow-dag-test           # one full DAG run: load_data (logical date) →
 make airflow-down
 ```
 
-The DAG [`airflow/dags/finance_demo_daily.py`](airflow/dags/finance_demo_daily.py) sets `LOAD_DATA_AS_OF` to the Airflow logical date (`{{ ds }}`) so each run mimics a **business-day** source load before analytics ingestion. More detail: [orchestration/README.md](orchestration/README.md).
+The DAG `[airflow/dags/finance_demo_daily.py](airflow/dags/finance_demo_daily.py)` sets `LOAD_DATA_AS_OF` to the Airflow logical date (`{{ ds }}`) so each run mimics a **business-day** source load before analytics ingestion. More detail: [orchestration/README.md](orchestration/README.md).
 
 One-shot (starts Docker, waits briefly, then seed + dbt + tests + docs + lineage):
 
@@ -127,18 +131,18 @@ make demo
 ## Source → mart flow
 
 
-| Source (operational)                   | Staging                         | Intermediate                                           | Marts                             |
-| --------------------------------- | ------------------------------- | ------------------------------------------------------ | --------------------------------- |
-| `staging.lending_branches`            | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
-| `staging.lending_customers`           | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
-| `staging.lending_loan_applications`   | `stg_lending_loan_applications` | —                                                      | (via facts context)               |
-| `staging.lending_loans`               | `stg_lending_loans`             | `int_daily_loan_cashflow`                              | `fct_loan_disbursement`           |
-| `staging.lending_repayments`          | `stg_lending_repayments`        | `int_daily_loan_cashflow`                              | `fct_repayment`                   |
-| `staging.insurance_policy_holders`    | `stg_insurance_policy_holders`  | identity + `int_customer_360`                          | `dim_customer`                    |
-| `staging.insurance_policies`          | `stg_insurance_policies`        | `int_policy_claim_summary`                             | `fct_policy`                      |
-| `staging.insurance_claims`            | `stg_insurance_claims`          | `int_policy_claim_summary`                             | `fct_claim`                       |
-| (calendar spine)                  | —                               | —                                                      | `dim_date`                        |
-| Facts + dims                      | —                               | —                                                      | `mart_branch_monthly_performance` |
+| Source (operational)                | Staging                         | Intermediate                                           | Marts                             |
+| ----------------------------------- | ------------------------------- | ------------------------------------------------------ | --------------------------------- |
+| `staging.lending_branches`          | `stg_lending_branches`          | —                                                      | `dim_branch`                      |
+| `staging.lending_customers`         | `stg_lending_customers`         | `int_customer_identity_resolution`, `int_customer_360` | `dim_customer`                    |
+| `staging.lending_loan_applications` | `stg_lending_loan_applications` | —                                                      | (via facts context)               |
+| `staging.lending_loans`             | `stg_lending_loans`             | `int_daily_loan_cashflow`                              | `fct_loan_disbursement`           |
+| `staging.lending_repayments`        | `stg_lending_repayments`        | `int_daily_loan_cashflow`                              | `fct_repayment`                   |
+| `staging.insurance_policy_holders`  | `stg_insurance_policy_holders`  | identity + `int_customer_360`                          | `dim_customer`                    |
+| `staging.insurance_policies`        | `stg_insurance_policies`        | `int_policy_claim_summary`                             | `fct_policy`                      |
+| `staging.insurance_claims`          | `stg_insurance_claims`          | `int_policy_claim_summary`                             | `fct_claim`                       |
+| (calendar spine)                    | —                               | —                                                      | `dim_date`                        |
+| Facts + dims                        | —                               | —                                                      | `mart_branch_monthly_performance` |
 
 
 ## Data model notes
@@ -214,7 +218,7 @@ make bi-up
 
 Open `http://localhost:${METABASE_PORT:-3000}` (see `.env.example`). If port `3000` is busy, set `METABASE_PORT` in `.env` (for example `3001`) and restart `make bi-up`.
 
-Add a database connection using host **`analytics_db`**, port **5432**, database **`analytics_db`**, and the same user/password as `ANALYTICS_DB_*` (this hostname works from inside the Docker network; from the host use `localhost` and mapped port **5435** if you run Metabase outside Compose).
+Add a database connection using host `**analytics_db**`, port **5432**, database `**analytics_db`**, and the same user/password as `ANALYTICS_DB_*` (this hostname works from inside the Docker network; from the host use `localhost` and mapped port **5435** if you run Metabase outside Compose).
 
 Stop Metabase:
 
@@ -223,7 +227,7 @@ make bi-down
 ```
 
 Semantic metrics for `mart_branch_monthly_performance` are defined in dbt ([dbt_project/models/marts/_mart_branch_monthly_semantic.yml](dbt_project/models/marts/_mart_branch_monthly_semantic.yml)).
-For business-facing BI, use semantic curated views generated from [`bi/semantic/contract.yml`](bi/semantic/contract.yml) and exposed under `semantic.*` (instead of direct `marts.*` SQL).
+For business-facing BI, use semantic curated views generated from `[bi/semantic/contract.yml](bi/semantic/contract.yml)` and exposed under `semantic.*` (instead of direct `marts.*` SQL).
 
 For reproducible BI queries aligned to semantic formulas, use:
 
@@ -234,7 +238,7 @@ For reproducible BI queries aligned to semantic formulas, use:
 ## Tradeoffs and next steps
 
 - **Default reload:** batch via `make seed-data`; optional **Airflow** (`make airflow-up`, DAG under `airflow/dags/`) or **Prefect** (`orchestration/refresh_flow.py`, `requirements-orchestration.txt`).
-- **`stg_lending_loans` is incremental** (merge on `loan_id`, watermark `loaded_at`). First-time or after model changes: `dbt run --select stg_lending_loans --full-refresh`.
+- `**stg_lending_loans` is incremental** (merge on `loan_id`, watermark `loaded_at`). First-time or after model changes: `dbt run --select stg_lending_loans --full-refresh`.
 - **Source Postgres** runs with `wal_level=logical` for future CDC; see [docs/realtime-and-cdc.md](docs/realtime-and-cdc.md).
 - **Identity rules are intentionally simple:** no probabilistic matching, no manual overrides table.
 - **Branch attribution for insurance:** policies and claims roll up to `primary_branch_id` only when the holder resolves to a lending customer; pure insurance customers are excluded from branch KPIs (documented choice for this demo).
@@ -243,12 +247,12 @@ For reproducible BI queries aligned to semantic formulas, use:
 ## Ports (default `.env.example`)
 
 
-| Service | Host port |
-| ------------- | --------- |
-| source_db_1   | 5433      |
-| source_db_2   | 5434      |
-| analytics_db  | 5435      |
-| Airflow UI    | 8080 (override `AIRFLOW_WEBSERVER_PORT`) |
+| Service      | Host port                                |
+| ------------ | ---------------------------------------- |
+| source_db_1  | 5433                                     |
+| source_db_2  | 5434                                     |
+| analytics_db | 5435                                     |
+| Airflow UI   | 8080 (override `AIRFLOW_WEBSERVER_PORT`) |
 
 
 ## License
